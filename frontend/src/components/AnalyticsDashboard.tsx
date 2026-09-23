@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Business,
   BusinessKPIs,
   StockRiskIndicator,
   DemandTrend,
   Recommendation
 } from '../types';
 import {
-  fetchBusinesses,
   fetchBusinessKPIs,
   fetchInventoryRisks,
   fetchDemandTrends,
@@ -15,20 +13,14 @@ import {
 } from '../services/api';
 
 interface AnalyticsDashboardProps {
-  businessId?: number | null;
-  onSelectBusiness?: (id: number) => void;
   days?: number;
   onSelectDays?: (days: number) => void;
 }
 
 export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
-  businessId: propBusinessId,
-  onSelectBusiness,
   days: propDays,
   onSelectDays,
 }) => {
-  const [businesses, setBusinesses] = useState<Business[]>([]);
-  const [internalBusinessId, setInternalBusinessId] = useState<number | null>(null);
   const [internalDays, setInternalDays] = useState<number>(30);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,48 +30,24 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
   const [trends, setTrends] = useState<DemandTrend[]>([]);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
 
-  const selectedBusinessId = propBusinessId !== undefined ? propBusinessId : internalBusinessId;
   const days = propDays !== undefined ? propDays : internalDays;
-
-  const handleBusinessChange = (id: number) => {
-    if (onSelectBusiness) onSelectBusiness(id);
-    else setInternalBusinessId(id);
-  };
 
   const handleDaysChange = (newDays: number) => {
     if (onSelectDays) onSelectDays(newDays);
     else setInternalDays(newDays);
   };
 
-  // Load available businesses on mount
+  // Load analytics when days change
   useEffect(() => {
-    async function loadBusinesses() {
-      try {
-        const list = await fetchBusinesses();
-        setBusinesses(list);
-        if (list.length > 0 && selectedBusinessId === null) {
-          handleBusinessChange(list[0].id);
-        }
-      } catch (err: unknown) {
-        console.error('Could not load businesses:', err);
-      }
-    }
-    loadBusinesses();
-  }, []);
-
-  // Load analytics when selectedBusinessId or days change
-  useEffect(() => {
-    if (!selectedBusinessId) return;
-
     async function loadAnalytics() {
       setLoading(true);
       setError(null);
       try {
         const [kpiRes, riskRes, trendRes, recRes] = await Promise.all([
-          fetchBusinessKPIs(selectedBusinessId!, days),
-          fetchInventoryRisks(selectedBusinessId!, days),
-          fetchDemandTrends(selectedBusinessId!, Math.max(7, Math.floor(days / 2))),
-          fetchRecommendations(selectedBusinessId!, days)
+          fetchBusinessKPIs(days),
+          fetchInventoryRisks(days),
+          fetchDemandTrends(Math.max(7, Math.floor(days / 2))),
+          fetchRecommendations(days)
         ]);
         setKpis(kpiRes);
         setRisks(riskRes);
@@ -94,51 +62,12 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
     }
 
     loadAnalytics();
-  }, [selectedBusinessId, days]);
-
-  if (businesses.length === 0) {
-    return (
-      <div className="card">
-        <div className="card-header">
-          <h2 className="card-title">Deterministic Analytics Dashboard</h2>
-          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Phase 1B Engine</span>
-        </div>
-        <div style={{ textAlign: 'center', padding: '2rem 1rem', color: 'var(--text-secondary)' }}>
-          <p style={{ marginBottom: '1rem' }}>No business entities found in database.</p>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            Run <code>python scripts/seed_demo_data.py</code> or create a business via POST /api/v1/businesses to view calculated metrics.
-          </p>
-        </div>
-      </div>
-    );
-  }
+  }, [days]);
 
   return (
     <div style={{ marginTop: '2rem' }}>
       {/* Controls Bar */}
-      <div className="card" style={{ padding: '1rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Business:</label>
-          <select
-            value={selectedBusinessId || ''}
-            onChange={(e) => handleBusinessChange(Number(e.target.value))}
-            style={{
-              background: 'var(--bg-primary)',
-              color: 'var(--text-primary)',
-              border: '1px solid var(--border-color)',
-              padding: '0.4rem 0.8rem',
-              borderRadius: '6px',
-              fontSize: '0.9rem'
-            }}
-          >
-            {businesses.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name} ({b.industry})
-              </option>
-            ))}
-          </select>
-        </div>
-
+      <div className="card" style={{ padding: '1rem 1.5rem', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Observation Window:</label>
           <select

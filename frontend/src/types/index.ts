@@ -8,11 +8,105 @@ export interface HealthResponse {
 
 export type ConnectionState = 'idle' | 'checking' | 'connected' | 'error';
 
+// ─── Authentication Types ────────────────────────────────────────────────────
+
+export type UserRole = 'OWNER' | 'ADMIN' | 'MEMBER';
+
+export interface User {
+  id: number;
+  business_id: number;
+  email: string;
+  role: UserRole;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface TokenResponse {
+  access_token: string;
+  token_type: 'bearer';
+  user: User;
+  business_name: string;
+}
+
+export interface AuthMeResponse {
+  user: User;
+  business_id: number;
+  business_name: string;
+  business_industry: string;
+}
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface RegisterRequest {
+  business_name: string;
+  business_industry: string;
+  email: string;
+  password: string;
+}
+
+export type AuthState =
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'authenticated'; user: User; businessName: string; businessIndustry: string; token: string }
+  | { status: 'error'; message: string };
+
 export interface Business {
   id: number;
   name: string;
   industry: string;
   created_at: string;
+}
+
+// ─── Product & Inventory Types (M5-S1) ───────────────────────────────────────
+
+export interface InventorySummary {
+  id: number;
+  product_id: number;
+  quantity: number;
+  reorder_level: number;
+  updated_at: string;
+}
+
+export interface InventoryUpdateRequest {
+  quantity?: number;
+  reorder_level?: number;
+}
+
+export interface InventoryItemDetail {
+  product_id: number;
+  product_name: string;
+  sku: string;
+  category: string;
+  unit_price: number;
+  quantity: number;
+  reorder_level: number;
+  days_of_inventory: number | null;
+  risk_level: string;
+  updated_at: string;
+}
+
+export interface Product {
+  id: number;
+  business_id: number;
+  name: string;
+  category: string;
+  sku: string;
+  unit_price: number;
+  created_at: string;
+  inventory?: InventorySummary | null;
+}
+
+export interface ProductCreateRequest {
+  name: string;
+  category: string;
+  sku: string;
+  unit_price: number;
+  business_id: number;
+  initial_quantity?: number;
+  reorder_level?: number;
 }
 
 export interface BusinessKPIs {
@@ -77,6 +171,23 @@ export interface InvestigationResponse {
   limitations: string[];
 }
 
+// ─── Investigation History Types ────────────────────────────────────────────
+
+export interface InvestigationAuditSummary {
+  id: number;
+  question: string;
+  confidence: 'HIGH' | 'MEDIUM' | 'LOW';
+  verification_status: string;
+  provider: string;
+  execution_duration_ms: number;
+  created_at: string;
+}
+
+export interface InvestigationAuditDetail extends InvestigationAuditSummary {
+  answer: string;
+  context_snapshot: Record<string, unknown>;
+}
+
 export interface CrossDomainRiskCorrelation {
   correlation_id: string;
   business_id: number;
@@ -95,6 +206,13 @@ export interface PrioritizedRiskAction {
   priority_rank: number;
   priority_score: number;
   business_id: number;
+  // ─── M5-S4 Persistence Fields ───────────────────────────────────
+  risk_fingerprint: string;
+  current_state: RiskState;
+  last_actioned_at?: string | null;
+  last_actioned_by?: number | null;
+  last_action_note?: string | null;
+  // ─── Existing Fields ─────────────────────────────────────────────
   product_id?: number | null;
   product_name?: string | null;
   sku?: string | null;
@@ -154,4 +272,64 @@ export interface BusinessFinancialSummary {
   impacted_skus: SKUFinancialImpact[];
 }
 
+// ─── Risk Action Types (M5-S4) ──────────────────────────────────────────────
 
+export type RiskState = 'OPEN' | 'ACKNOWLEDGED' | 'RESOLVED' | 'DISMISSED';
+
+export interface RiskActionCreate {
+  risk_fingerprint: string;
+  product_id?: number | null;
+  risk_category: string;
+  state: RiskState;
+  action_note?: string | null;
+  metrics_snapshot?: Record<string, unknown>;
+}
+
+export interface RiskAction {
+  id: number;
+  business_id: number;
+  user_id?: number | null;
+  user_email?: string | null;
+  product_id?: number | null;
+  risk_fingerprint: string;
+  risk_category: string;
+  state: string;
+  action_note?: string | null;
+  metrics_snapshot: Record<string, unknown>;
+  created_at: string;
+}
+
+// ─── Transaction Types (M5-S3) ──────────────────────────────────────────────
+
+export type TransactionType = 'sale' | 'purchase' | 'refund' | 'adjustment';
+
+export interface TransactionItemCreate {
+  product_id: number;
+  quantity: number;
+  unit_price: number;
+}
+
+export interface TransactionCreate {
+  business_id: number;
+  transaction_type: TransactionType;
+  total_amount?: number | null;
+  items: TransactionItemCreate[];
+}
+
+export interface TransactionItemResponse {
+  id: number;
+  transaction_id: number;
+  product_id: number;
+  quantity: number;
+  unit_price: number;
+}
+
+export interface TransactionResponse {
+  id: number;
+  business_id: number;
+  transaction_type: string;
+  total_amount: number;
+  transaction_date: string;
+  created_at: string;
+  items: TransactionItemResponse[];
+}

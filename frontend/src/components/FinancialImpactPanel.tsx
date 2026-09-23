@@ -3,12 +3,10 @@ import { BusinessFinancialSummary, SKUFinancialImpact } from '../types';
 import { fetchBusinessFinancialSummary } from '../services/api';
 
 interface FinancialImpactPanelProps {
-  businessId: number | null;
   days?: number;
 }
 
 export const FinancialImpactPanel: React.FC<FinancialImpactPanelProps> = ({
-  businessId,
   days = 30,
 }) => {
   const [summary, setSummary] = useState<BusinessFinancialSummary | null>(null);
@@ -16,14 +14,12 @@ export const FinancialImpactPanel: React.FC<FinancialImpactPanelProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!businessId) return;
-
     let isMounted = true;
     async function loadFinancialData() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetchBusinessFinancialSummary(businessId!, days);
+        const res = await fetchBusinessFinancialSummary(days);
         if (isMounted) setSummary(res);
       } catch (err: unknown) {
         if (isMounted) {
@@ -39,9 +35,7 @@ export const FinancialImpactPanel: React.FC<FinancialImpactPanelProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [businessId, days]);
-
-  if (!businessId) return null;
+  }, [days]);
 
   return (
     <div style={{ marginTop: '2rem' }}>
