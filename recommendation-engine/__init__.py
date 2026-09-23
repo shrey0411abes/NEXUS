@@ -49,6 +49,7 @@ __all__ = [
     "CrossDomainRiskCorrelation",
     "PrioritizedRiskAction",
     "CrossDomainAnalysisResult",
+    "generate_risk_fingerprint",
     "SKUFinancialImpact",
     "BusinessFinancialSummary",
     "FinancialAnalyzer",
@@ -63,5 +64,5 @@ from financial_models import (
     SKUFinancialImpact,
     BusinessFinancialSummary,
 )
-from cross_domain_engine import CrossDomainEngine
+from cross_domain_engine import CrossDomainEngine, generate_risk_fingerprint
 from analyzers.financial_analyzer import FinancialAnalyzer

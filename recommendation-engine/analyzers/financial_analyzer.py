@@ -4,8 +4,11 @@ Deterministic Financial Impact & Retail Asset Analyzer (Phase 4A).
 Calculates exact revenue exposures and retail asset valuations from verified SQLite records.
 Preserves the invariant: SQLite -> Analytics -> Correlations -> Priorities -> Financial Impact -> AI.
 """
+from decimal import Decimal, ROUND_HALF_UP
 from typing import List, Dict, Optional
+# pyrefly: ignore [missing-import]
 from sqlalchemy import select
+# pyrefly: ignore [missing-import]
 from sqlalchemy.orm import Session
 
 from models.product import Product
@@ -56,7 +59,7 @@ class FinancialAnalyzer:
 
         for product, inventory in records:
             p_id = product.id
-            price = float(product.unit_price)
+            price = Decimal(str(product.unit_price)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
             qty = int(inventory.quantity)
             reorder = int(inventory.reorder_level)
             velocity = float(velocities.get(p_id, 0.0))
@@ -70,18 +73,19 @@ class FinancialAnalyzer:
             is_stagnant = (velocity == 0.0 and qty > reorder)
 
             # Financial metrics
-            retail_on_hand = round(qty * price, 2)
-            trapped_retail_value = round(qty * price, 2) if is_stagnant else 0.0
+            retail_on_hand = (Decimal(str(qty)) * price).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            trapped_retail_value = (Decimal(str(qty)) * price).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP) if is_stagnant else Decimal("0.00")
 
             # Daily Revenue Exposure: applies when product is in stockout/high-risk state with active demand velocity
             if is_stockout_risk and velocity > 0.0:
-                daily_exposure = round(velocity * price, 2)
-                proj_7d = round(daily_exposure * 7.0, 2)
-                proj_30d = round(daily_exposure * 30.0, 2)
+                vel_dec = Decimal(str(round(velocity, 4)))
+                daily_exposure = (vel_dec * price).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+                proj_7d = (daily_exposure * Decimal("7")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+                proj_30d = (daily_exposure * Decimal("30")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
             else:
-                daily_exposure = 0.0
-                proj_7d = 0.0
-                proj_30d = 0.0
+                daily_exposure = Decimal("0.00")
+                proj_7d = Decimal("0.00")
+                proj_30d = Decimal("0.00")
 
             # Factual supporting metrics strings
             supporting_facts: List[str] = [
@@ -148,11 +152,11 @@ class FinancialAnalyzer:
         observation_days = max(1, days)
         all_skus = self.get_all_sku_financial_impacts(business_id=business_id, days=observation_days)
 
-        total_daily_exp = round(sum(s.daily_revenue_exposure for s in all_skus), 2)
-        total_7d_exp = round(sum(s.projected_7d_revenue_exposure for s in all_skus), 2)
-        total_30d_exp = round(sum(s.projected_30d_revenue_exposure for s in all_skus), 2)
-        total_trapped = round(sum(s.trapped_retail_inventory_value for s in all_skus), 2)
-        total_on_hand_val = round(sum(s.retail_value_on_hand for s in all_skus), 2)
+        total_daily_exp = sum((s.daily_revenue_exposure for s in all_skus), Decimal("0.00")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        total_7d_exp = sum((s.projected_7d_revenue_exposure for s in all_skus), Decimal("0.00")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        total_30d_exp = sum((s.projected_30d_revenue_exposure for s in all_skus), Decimal("0.00")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        total_trapped = sum((s.trapped_retail_inventory_value for s in all_skus), Decimal("0.00")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        total_on_hand_val = sum((s.retail_value_on_hand for s in all_skus), Decimal("0.00")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
         exposed_count = sum(1 for s in all_skus if s.daily_revenue_exposure > 0)
         stagnant_count = sum(1 for s in all_skus if s.is_stagnant)
@@ -173,3 +177,4 @@ class FinancialAnalyzer:
             total_active_sku_count=len(all_skus),
             impacted_skus=impacted,
         )
+

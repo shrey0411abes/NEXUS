@@ -1,5 +1,5 @@
 """
-Tests for Phase 6 API Reliability, Error Masking, and Analytics Edge Cases.
+Tests for API Reliability, Error Masking, and Analytics Edge Cases (auth-aware).
 """
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
@@ -47,15 +47,11 @@ def test_empty_business_analytics_resilience(db_session: Session):
 
 def test_invalid_parameters_handling(client: TestClient, db_session: Session):
     """Verify that invalid API parameters return standard 422 validation errors without crashing."""
-    biz = Business(name="Param Test Biz", industry="Retail")
-    db_session.add(biz)
-    db_session.commit()
-
-    # Negative observation window
-    res = client.get(f"/api/v1/analytics/kpis?business_id={biz.id}&days=-5")
+    # Negative observation window — no business_id needed (auth-bound)
+    res = client.get("/api/v1/analytics/kpis?days=-5")
     assert res.status_code == 422
     assert "detail" in res.json()
 
     # Window exceeding maximum (le=365)
-    res_max = client.get(f"/api/v1/analytics/kpis?business_id={biz.id}&days=999")
+    res_max = client.get("/api/v1/analytics/kpis?days=999")
     assert res_max.status_code == 422

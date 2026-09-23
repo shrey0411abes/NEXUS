@@ -1,4 +1,4 @@
-"""Tests for KPI math and safe arithmetic."""
+from decimal import Decimal
 from calculators.kpi_calculator import (
     calculate_average_transaction_value,
     calculate_inventory_health_counts,
@@ -8,19 +8,19 @@ from calculators.kpi_calculator import (
 def test_average_transaction_value_normal():
     """Verify ATV with standard revenue and transaction count."""
     atv = calculate_average_transaction_value(1500.0, 10)
-    assert atv == 150.0
+    assert atv == Decimal("150.00")
 
 
 def test_average_transaction_value_zero_transactions():
     """Verify ATV handles zero transactions safely without ZeroDivisionError."""
     atv = calculate_average_transaction_value(0.0, 0)
-    assert atv == 0.0
+    assert atv == Decimal("0.00")
 
 
 def test_average_transaction_value_fractional():
-    """Verify ATV rounds to 2 decimal places."""
+    """Verify ATV rounds to 2 decimal places with ROUND_HALF_UP."""
     atv = calculate_average_transaction_value(100.0, 3)
-    assert atv == 33.33
+    assert atv == Decimal("33.33")
 
 
 def test_inventory_health_counts():

@@ -1,5 +1,6 @@
 """Sales analyzer executing database aggregations for revenue and velocity metrics."""
 from datetime import datetime, timezone, timedelta
+from decimal import Decimal, ROUND_HALF_UP
 from typing import List, Optional, Dict
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session
@@ -52,7 +53,7 @@ class SalesAnalyzer:
         )
         tx_result = self.db.execute(tx_query).first()
         total_tx = tx_result.tx_count if tx_result else 0
-        total_rev = float(tx_result.revenue) if tx_result else 0.0
+        total_rev = Decimal(str(tx_result.revenue)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP) if tx_result and tx_result.revenue is not None else Decimal("0.00")
 
         # 2. Total units sold from TransactionItems
         units_query = (
@@ -86,7 +87,7 @@ class SalesAnalyzer:
         return BusinessKPIs(
             business_id=business_id,
             observation_period_days=observation_days,
-            total_revenue=round(total_rev, 2),
+            total_revenue=total_rev,
             total_transactions=total_tx,
             total_units_sold=total_units,
             average_transaction_value=avg_tx_value,
@@ -122,7 +123,7 @@ class SalesAnalyzer:
         )
         result = self.db.execute(metrics_query).first()
         units_sold = int(result.units_sold) if result else 0
-        revenue = float(result.revenue) if result else 0.0
+        revenue = Decimal(str(result.revenue)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP) if result and result.revenue is not None else Decimal("0.00")
 
         velocity = calculate_sales_velocity(units_sold, observation_days)
         avg_daily_rev = calculate_average_daily_revenue(revenue, observation_days)
@@ -133,7 +134,7 @@ class SalesAnalyzer:
             sku=product.sku,
             observation_period_days=observation_days,
             total_units_sold=units_sold,
-            total_revenue=round(revenue, 2),
+            total_revenue=revenue,
             sales_velocity=velocity,
             average_daily_revenue=avg_daily_rev,
         )

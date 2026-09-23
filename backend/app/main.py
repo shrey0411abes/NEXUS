@@ -6,8 +6,13 @@ from typing import Any, Dict
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
+from app.core.correlation import RequestCorrelationMiddleware, get_request_id
+from app.core.middleware import (
+    PayloadTooLargeError,
+    RequestSizeLimitMiddleware,
+    SecurityHeadersMiddleware,
+)
 from app.api.v1.router import api_router
-from database import init_db
 
 logger = logging.getLogger(__name__)
 
@@ -15,12 +20,11 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application startup and shutdown events."""
-    # Initialize database tables
-    init_db()
-
+    # Database schema lifecycle is managed authoritatively via Alembic migrations.
     # Initialize LLM provider and store in app.state
     # Provider name comes from environment — default is 'mock' (no API key needed)
     try:
+        # pyrefly: ignore [missing-import]
         from client import create_provider
         provider = create_provider(
             provider_name=settings.LLM_PROVIDER,
@@ -55,7 +59,16 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS middleware configuration
+# Middleware stack configuration:
+# Starlette executes middleware in reverse order of addition (last added runs outermost).
+# Registration order:
+# 1. RequestSizeLimitMiddleware (inner: runs just outside endpoint handlers)
+app.add_middleware(
+    RequestSizeLimitMiddleware,
+    max_upload_size=settings.MAX_REQUEST_BODY_SIZE,
+)
+
+# 2. CORS middleware (middle: handles preflight OPTIONS and attaches CORS headers)
 if settings.CORS_ORIGINS:
     app.add_middleware(
         CORSMiddleware,
@@ -63,17 +76,38 @@ if settings.CORS_ORIGINS:
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
+        expose_headers=["X-Request-ID"],
     )
+
+# 3. Security headers middleware (middle: attaches security headers to all responses)
+app.add_middleware(
+    SecurityHeadersMiddleware,
+    is_production=(settings.ENVIRONMENT.lower() == "production"),
+)
+
+# 4. Request correlation middleware (outermost: ensures X-Request-ID and structured logging across all responses)
+app.add_middleware(RequestCorrelationMiddleware)
 
 # Mount API v1 router
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
 
+@app.exception_handler(PayloadTooLargeError)
+async def payload_too_large_handler(request: Request, exc: PayloadTooLargeError):
+    """Explicit handler for request payload size limit violations."""
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        status_code=413,
+        content={"detail": exc.detail},
+    )
+
+
 @app.exception_handler(Exception)
-async def global_exception_handler(request, exc: Exception):
+async def global_exception_handler(request: Request, exc: Exception):
     """Safely catch unhandled internal exceptions without leaking stack traces or internal paths."""
     from fastapi.responses import JSONResponse
-    logger.exception("Unhandled server error processing request %s %s: %s", request.method, request.url.path, exc)
+    req_id = get_request_id() or "-"
+    logger.exception("[%s] Unhandled server error processing request %s %s: %s", req_id, request.method, request.url.path, exc)
     return JSONResponse(
         status_code=500,
         content={"detail": "An internal server error occurred."},

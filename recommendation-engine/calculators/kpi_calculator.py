@@ -1,21 +1,23 @@
 """Deterministic calculations for business Key Performance Indicators (KPIs)."""
-from typing import List, Tuple, Optional
+from decimal import Decimal, ROUND_HALF_UP
+from typing import List, Tuple, Union
 
 
-def calculate_average_transaction_value(total_revenue: float, total_transactions: int) -> float:
+def calculate_average_transaction_value(total_revenue: Union[Decimal, float], total_transactions: int) -> Decimal:
     """
     Calculate average revenue per transaction.
 
     Formula:
-        ATV = total_revenue / total_transactions (if total_transactions > 0 else 0.0)
+        ATV = total_revenue / total_transactions (if total_transactions > 0 else Decimal('0.00'))
 
     Guarantees:
         - Never raises ZeroDivisionError
-        - Returns rounded 2-decimal float
+        - Returns Decimal rounded to 2 decimal places using ROUND_HALF_UP
     """
     if total_transactions <= 0:
-        return 0.0
-    return round(total_revenue / total_transactions, 2)
+        return Decimal("0.00")
+    rev = Decimal(str(total_revenue)) if not isinstance(total_revenue, Decimal) else total_revenue
+    return (rev / Decimal(str(total_transactions))).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
 def calculate_inventory_health_counts(

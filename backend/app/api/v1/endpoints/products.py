@@ -1,10 +1,12 @@
-"""Product API endpoints."""
-from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from app.api.deps import get_db
-from repositories.business_repository import BusinessRepository
-from repositories.product_repository import ProductRepository
+"""Product API endpoints — tenant-isolated."""
+from typing import List
+from fastapi import APIRouter, Depends, status
+
+from app.api.deps import get_uow, get_current_active_business, require_role
+from app.services.product_service import ProductService
+from unit_of_work import SqlAlchemyUnitOfWork
+from models.business import Business
+from models.user import User
 from schemas.product import ProductCreate, ProductResponse
 
 router = APIRouter(prefix="/products", tags=["Products"])
@@ -12,51 +14,41 @@ router = APIRouter(prefix="/products", tags=["Products"])
 
 @router.get("", response_model=List[ProductResponse])
 def get_products(
-    business_id: Optional[int] = None,
     limit: int = 100,
     offset: int = 0,
-    db: Session = Depends(get_db)
+    current_business: Business = Depends(get_current_active_business),
+    uow: SqlAlchemyUnitOfWork = Depends(get_uow),
 ) -> List[ProductResponse]:
-    """Retrieve list of products, optionally filtered by business ID."""
-    repo = ProductRepository(db)
-    return repo.get_all(business_id=business_id, limit=limit, offset=offset)
+    """Retrieve all products belonging to the authenticated tenant via ProductService."""
+    service = ProductService(uow)
+    return service.get_products(business_id=current_business.id, limit=limit, offset=offset)
 
 
 @router.post("", response_model=ProductResponse, status_code=status.HTTP_201_CREATED)
 def create_product(
     product_in: ProductCreate,
-    db: Session = Depends(get_db)
+    current_business: Business = Depends(get_current_active_business),
+    current_user: User = Depends(require_role(["OWNER", "ADMIN"])),
+    uow: SqlAlchemyUnitOfWork = Depends(get_uow),
 ) -> ProductResponse:
-    """Create a new product SKU and initialize its 1-to-1 inventory."""
-    business_repo = BusinessRepository(db)
-    if not business_repo.get_by_id(product_in.business_id):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Business with ID {product_in.business_id} does not exist"
-        )
-
-    product_repo = ProductRepository(db)
-    existing_sku = product_repo.get_by_sku(product_in.business_id, product_in.sku)
-    if existing_sku:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Product with SKU '{product_in.sku}' already exists for business {product_in.business_id}"
-        )
-
-    return product_repo.create(product_in)
+    """
+    Create a new product SKU for the authenticated tenant via ProductService.
+    Requires OWNER or ADMIN role — MEMBER will receive 403 Forbidden.
+    The authenticated tenant's business ID is always authoritative.
+    """
+    service = ProductService(uow)
+    return service.create_product(business_id=current_business.id, product_in=product_in)
 
 
 @router.get("/{product_id}", response_model=ProductResponse)
 def get_product_by_id(
     product_id: int,
-    db: Session = Depends(get_db)
+    current_business: Business = Depends(get_current_active_business),
+    uow: SqlAlchemyUnitOfWork = Depends(get_uow),
 ) -> ProductResponse:
-    """Retrieve details of a single product SKU."""
-    repo = ProductRepository(db)
-    product = repo.get_by_id(product_id)
-    if not product:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Product with ID {product_id} not found"
-        )
-    return product
+    """
+    Retrieve a product by ID via ProductService — only if it belongs to the authenticated tenant.
+    Returns 404 for cross-tenant product IDs to prevent resource enumeration.
+    """
+    service = ProductService(uow)
+    return service.get_product_by_id(business_id=current_business.id, product_id=product_id)

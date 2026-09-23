@@ -1,38 +1,36 @@
-"""Tests for Backend API v1 persistence endpoints."""
+"""Tests for Backend API v1 persistence endpoints (auth-aware)."""
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
+from models import Business, Product
 
 
-def test_businesses_api_crud(client: TestClient):
-    """Test POST /api/v1/businesses and GET /api/v1/businesses."""
-    # Create business
-    post_res = client.post(
-        "/api/v1/businesses",
-        json={"name": "Summit Retail", "industry": "Outdoor Gear"}
-    )
-    assert post_res.status_code == 201
-    biz_data = post_res.json()
-    assert biz_data["id"] is not None
-    assert biz_data["name"] == "Summit Retail"
-    biz_id = biz_data["id"]
+def test_my_business_api(client: TestClient, db_session: Session):
+    """Test GET /api/v1/businesses/me returns the authenticated tenant's business."""
+    res = client.get("/api/v1/businesses/me")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["id"] is not None
+    assert data["name"] == "Test Business"
+    biz_id = data["id"]
 
-    # Get businesses list
-    list_res = client.get("/api/v1/businesses")
-    assert list_res.status_code == 200
-    assert len(list_res.json()) >= 1
-
-    # Get single business
+    # GET /{business_id} returns own business
     get_res = client.get(f"/api/v1/businesses/{biz_id}")
     assert get_res.status_code == 200
-    assert get_res.json()["name"] == "Summit Retail"
+    assert get_res.json()["name"] == "Test Business"
+
+    # GET /{wrong_id} returns 404 (IDOR protection)
+    get_bad = client.get("/api/v1/businesses/99999")
+    assert get_bad.status_code == 404
 
 
-def test_products_and_inventory_api(client: TestClient):
-    """Test POST /api/v1/products, GET /api/v1/products, GET /api/v1/inventory."""
-    # Create business first
-    biz_res = client.post("/api/v1/businesses", json={"name": "Flora Shop", "industry": "Florist"})
-    biz_id = biz_res.json()["id"]
+def test_products_and_inventory_api(client: TestClient, db_session: Session):
+    """Test POST /api/v1/products, GET /api/v1/products, GET /api/v1/inventory using authenticated tenant."""
+    # Get our authenticated tenant's business ID
+    me_res = client.get("/api/v1/businesses/me")
+    assert me_res.status_code == 200
+    biz_id = me_res.json()["id"]
 
-    # Create product with inventory
+    # Create product — business_id in payload is overridden by auth; we still send it for schema compliance
     prod_payload = {
         "business_id": biz_id,
         "name": "Red Rose Bouquet",
@@ -48,8 +46,8 @@ def test_products_and_inventory_api(client: TestClient):
     prod_id = prod_data["id"]
     assert prod_data["inventory"]["quantity"] == 40
 
-    # Get product list
-    prod_list_res = client.get(f"/api/v1/products?business_id={biz_id}")
+    # Get product list — no business_id param needed (uses auth tenant)
+    prod_list_res = client.get("/api/v1/products")
     assert prod_list_res.status_code == 200
     assert len(prod_list_res.json()) == 1
 
@@ -63,16 +61,16 @@ def test_products_and_inventory_api(client: TestClient):
     assert single_inv_res.status_code == 200
     assert single_inv_res.json()["quantity"] == 40
 
-    # Update inventory
+    # Update inventory (OWNER can do this)
     patch_res = client.patch(f"/api/v1/inventory/{prod_id}", json={"quantity": 25})
     assert patch_res.status_code == 200
     assert patch_res.json()["quantity"] == 25
 
 
-def test_product_sku_conflict_returns_409(client: TestClient):
+def test_product_sku_conflict_returns_409(client: TestClient, db_session: Session):
     """Verify that posting a duplicate SKU returns 409 Conflict."""
-    biz_res = client.post("/api/v1/businesses", json={"name": "Cafe Corner", "industry": "Food"})
-    biz_id = biz_res.json()["id"]
+    me_res = client.get("/api/v1/businesses/me")
+    biz_id = me_res.json()["id"]
 
     prod_payload = {
         "business_id": biz_id,
@@ -90,11 +88,10 @@ def test_product_sku_conflict_returns_409(client: TestClient):
     assert res2.status_code == 409
 
 
-def test_transactions_api_lifecycle(client: TestClient):
+def test_transactions_api_lifecycle(client: TestClient, db_session: Session):
     """Test POST /api/v1/transactions and GET /api/v1/transactions."""
-    # Setup business and product
-    biz_res = client.post("/api/v1/businesses", json={"name": "Bookstore", "industry": "Books"})
-    biz_id = biz_res.json()["id"]
+    me_res = client.get("/api/v1/businesses/me")
+    biz_id = me_res.json()["id"]
 
     prod_res = client.post("/api/v1/products", json={
         "business_id": biz_id,
@@ -104,9 +101,10 @@ def test_transactions_api_lifecycle(client: TestClient):
         "unit_price": 40.0,
         "initial_quantity": 20
     })
+    assert prod_res.status_code == 201
     prod_id = prod_res.json()["id"]
 
-    # Post transaction
+    # Post transaction — business_id in payload is overridden by auth
     tx_payload = {
         "business_id": biz_id,
         "transaction_type": "sale",
@@ -126,31 +124,38 @@ def test_transactions_api_lifecycle(client: TestClient):
     assert get_tx_res.json()["total_amount"] == 80.0
 
 
-def test_cross_business_transaction_rejected_by_api(client: TestClient):
-    """Verify that posting a transaction with a product from another business returns 400 Bad Request."""
-    biz1_res = client.post("/api/v1/businesses", json={"name": "Business One", "industry": "Retail"})
-    biz2_res = client.post("/api/v1/businesses", json={"name": "Business Two", "industry": "Retail"})
-    biz1_id = biz1_res.json()["id"]
-    biz2_id = biz2_res.json()["id"]
+def test_cross_business_transaction_rejected_by_api(client: TestClient, db_session: Session):
+    """
+    Verify that a transaction item referencing a product from another tenant is rejected.
+    Seeds Biz B's product directly in DB. Biz A (authenticated) tries to reference it.
+    """
+    # Seed a second business and product directly in DB (bypassing API)
+    biz_b = Business(name="Business Two", industry="Retail")
+    db_session.add(biz_b)
+    db_session.flush()
 
-    prod2_res = client.post("/api/v1/products", json={
-        "business_id": biz2_id,
-        "name": "Product of Biz 2",
-        "category": "Tech",
-        "sku": "PROD-2",
-        "unit_price": 50.0,
-        "initial_quantity": 20
-    })
-    prod2_id = prod2_res.json()["id"]
+    prod_b = Product(
+        business_id=biz_b.id,
+        name="Product of Biz B",
+        category="Tech",
+        sku="PROD-B",
+        unit_price=50.0,
+    )
+    db_session.add(prod_b)
+    db_session.commit()
+    db_session.refresh(prod_b)
 
-    # Transaction under Biz 1 referencing Product of Biz 2
+    # Get authenticated tenant (Biz A)
+    me_res = client.get("/api/v1/businesses/me")
+    biz_a_id = me_res.json()["id"]
+
+    # Transaction under Biz A referencing Product of Biz B
     tx_res = client.post("/api/v1/transactions", json={
-        "business_id": biz1_id,
+        "business_id": biz_a_id,
         "transaction_type": "sale",
         "items": [
-            {"product_id": prod2_id, "quantity": 1, "unit_price": 50.0}
+            {"product_id": prod_b.id, "quantity": 1, "unit_price": 50.0}
         ]
     })
     assert tx_res.status_code == 400
     assert "Cross-business product mismatch" in tx_res.json()["detail"]
-

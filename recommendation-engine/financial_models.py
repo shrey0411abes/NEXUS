@@ -2,9 +2,9 @@
 Domain models for deterministic financial impact and retail asset intelligence (Phase 4A).
 All calculations are strictly grounded in SQLite verified source of truth (unit_price, quantity, velocity).
 """
+from decimal import Decimal
 from typing import List, Optional
-# pyrefly: ignore [missing-import]
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
 
 class SKUFinancialImpact(BaseModel):
@@ -15,23 +15,35 @@ class SKUFinancialImpact(BaseModel):
     product_name: str = Field(..., description="Product catalog name")
     sku: str = Field(..., description="Stock Keeping Unit")
     category: str = Field(..., description="Product category")
-    unit_price: float = Field(..., ge=0.0, description="Verified catalog unit selling price ($)")
+    unit_price: Decimal = Field(..., ge=Decimal("0.0"), decimal_places=2, description="Verified catalog unit selling price ($)")
     current_quantity: int = Field(..., ge=0, description="Verified on-hand stock count")
     days_of_inventory: Optional[float] = Field(None, description="Estimated days of stock buffer remaining")
     sales_velocity: float = Field(..., ge=0.0, description="Verified average units sold per day")
     risk_severity: str = Field(..., description="Severity classification: CRITICAL, HIGH, MEDIUM, LOW, HEALTHY")
     is_stockout_risk: bool = Field(..., description="True if SKU is at CRITICAL or HIGH stockout risk")
     is_stagnant: bool = Field(..., description="True if SKU has 0 velocity and excess stock")
-    daily_revenue_exposure: float = Field(..., ge=0.0, description="Daily revenue run-rate exposed to stockout ($/day)")
-    projected_7d_revenue_exposure: float = Field(..., ge=0.0, description="7-day projected revenue exposure ($)")
-    projected_30d_revenue_exposure: float = Field(..., ge=0.0, description="30-day projected revenue exposure ($)")
-    retail_value_on_hand: float = Field(..., ge=0.0, description="Total retail value of on-hand inventory ($)")
-    trapped_retail_inventory_value: float = Field(..., ge=0.0, description="Retail value trapped in stagnant/dead stock ($)")
+    daily_revenue_exposure: Decimal = Field(..., ge=Decimal("0.0"), decimal_places=2, description="Daily revenue run-rate exposed to stockout ($/day)")
+    projected_7d_revenue_exposure: Decimal = Field(..., ge=Decimal("0.0"), decimal_places=2, description="7-day projected revenue exposure ($)")
+    projected_30d_revenue_exposure: Decimal = Field(..., ge=Decimal("0.0"), decimal_places=2, description="30-day projected revenue exposure ($)")
+    retail_value_on_hand: Decimal = Field(..., ge=Decimal("0.0"), decimal_places=2, description="Total retail value of on-hand inventory ($)")
+    trapped_retail_inventory_value: Decimal = Field(..., ge=Decimal("0.0"), decimal_places=2, description="Retail value trapped in stagnant/dead stock ($)")
     supporting_facts: List[str] = Field(default_factory=list, description="Verified factual statements supporting metrics")
     recommended_action: str = Field(..., description="Deterministic recommended operational action")
     source_status: str = Field(default="VERIFIED_FACT", description="Source data status")
 
     model_config = ConfigDict(from_attributes=True)
+
+    @field_serializer(
+        "unit_price",
+        "daily_revenue_exposure",
+        "projected_7d_revenue_exposure",
+        "projected_30d_revenue_exposure",
+        "retail_value_on_hand",
+        "trapped_retail_inventory_value",
+        when_used="json-unless-none",
+    )
+    def serialize_monetary(self, v: Decimal) -> float:
+        return float(v)
 
 
 class BusinessFinancialSummary(BaseModel):
@@ -40,11 +52,11 @@ class BusinessFinancialSummary(BaseModel):
     """
     business_id: int = Field(..., description="Target business identifier")
     observation_days: int = Field(..., ge=1, description="Observation window in days")
-    total_daily_revenue_exposure: float = Field(..., ge=0.0, description="Total daily revenue exposed across all at-risk SKUs ($/day)")
-    projected_7d_revenue_exposure: float = Field(..., ge=0.0, description="Total 7-day projected revenue exposure ($)")
-    projected_30d_revenue_exposure: float = Field(..., ge=0.0, description="Total 30-day projected revenue exposure ($)")
-    total_trapped_retail_inventory_value: float = Field(..., ge=0.0, description="Total retail inventory value trapped in stagnant stock ($)")
-    total_retail_inventory_value_on_hand: float = Field(..., ge=0.0, description="Total retail valuation of all catalog inventory on hand ($)")
+    total_daily_revenue_exposure: Decimal = Field(..., ge=Decimal("0.0"), decimal_places=2, description="Total daily revenue exposed across all at-risk SKUs ($/day)")
+    projected_7d_revenue_exposure: Decimal = Field(..., ge=Decimal("0.0"), decimal_places=2, description="Total 7-day projected revenue exposure ($)")
+    projected_30d_revenue_exposure: Decimal = Field(..., ge=Decimal("0.0"), decimal_places=2, description="Total 30-day projected revenue exposure ($)")
+    total_trapped_retail_inventory_value: Decimal = Field(..., ge=Decimal("0.0"), decimal_places=2, description="Total retail inventory value trapped in stagnant stock ($)")
+    total_retail_inventory_value_on_hand: Decimal = Field(..., ge=Decimal("0.0"), decimal_places=2, description="Total retail valuation of all catalog inventory on hand ($)")
     financially_exposed_sku_count: int = Field(..., ge=0, description="Number of active SKUs with active revenue exposure")
     stagnant_sku_count: int = Field(..., ge=0, description="Number of stagnant SKUs with trapped retail value")
     total_active_sku_count: int = Field(..., ge=0, description="Total catalog SKUs evaluated")
@@ -62,3 +74,15 @@ class BusinessFinancialSummary(BaseModel):
     )
 
     model_config = ConfigDict(from_attributes=True)
+
+    @field_serializer(
+        "total_daily_revenue_exposure",
+        "projected_7d_revenue_exposure",
+        "projected_30d_revenue_exposure",
+        "total_trapped_retail_inventory_value",
+        "total_retail_inventory_value_on_hand",
+        when_used="json-unless-none",
+    )
+    def serialize_monetary(self, v: Decimal) -> float:
+        return float(v)
+

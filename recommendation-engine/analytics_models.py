@@ -1,21 +1,26 @@
 """Domain models for deterministic business intelligence, analytics, and recommendations."""
+from decimal import Decimal
 from typing import Dict, List, Optional, Any
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
 
 class BusinessKPIs(BaseModel):
     """Aggregated core KPIs for a business over an observation window."""
     business_id: int = Field(..., description="ID of the business")
     observation_period_days: int = Field(..., ge=1, description="Number of days evaluated")
-    total_revenue: float = Field(..., ge=0.0, description="Total sales revenue within the period")
+    total_revenue: Decimal = Field(..., ge=Decimal("0.0"), decimal_places=2, description="Total sales revenue within the period")
     total_transactions: int = Field(..., ge=0, description="Total number of transactions completed")
     total_units_sold: int = Field(..., ge=0, description="Total quantity of item units sold")
-    average_transaction_value: float = Field(..., ge=0.0, description="Average revenue per transaction")
+    average_transaction_value: Decimal = Field(..., ge=Decimal("0.0"), decimal_places=2, description="Average revenue per transaction")
     active_products_count: int = Field(..., ge=0, description="Total number of active catalog products")
     low_stock_products_count: int = Field(..., ge=0, description="Number of products at or below reorder level")
     out_of_stock_products_count: int = Field(..., ge=0, description="Number of products with 0 stock")
 
     model_config = ConfigDict(from_attributes=True)
+
+    @field_serializer("total_revenue", "average_transaction_value", when_used="json-unless-none")
+    def serialize_monetary(self, v: Decimal) -> float:
+        return float(v)
 
 
 class ProductSalesMetrics(BaseModel):
@@ -25,11 +30,15 @@ class ProductSalesMetrics(BaseModel):
     sku: str
     observation_period_days: int
     total_units_sold: int
-    total_revenue: float
+    total_revenue: Decimal = Field(..., ge=Decimal("0.0"), decimal_places=2)
     sales_velocity: float = Field(..., description="Average units sold per day (units / days)")
-    average_daily_revenue: float = Field(..., description="Average revenue generated per day")
+    average_daily_revenue: Decimal = Field(..., ge=Decimal("0.0"), decimal_places=2, description="Average revenue generated per day")
 
     model_config = ConfigDict(from_attributes=True)
+
+    @field_serializer("total_revenue", "average_daily_revenue", when_used="json-unless-none")
+    def serialize_monetary(self, v: Decimal) -> float:
+        return float(v)
 
 
 class InventoryMetrics(BaseModel):
