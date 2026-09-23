@@ -1,20 +1,28 @@
 """Database engine, session management, and initialization for NEXUS Data Layer."""
 import os
+from pathlib import Path
 from typing import Generator
 from sqlalchemy import create_engine, event
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./nexus.db")
+# Anchor default SQLite URL deterministically to repository root nexus.db
+_repo_root = Path(__file__).resolve().parent.parent
+_default_db_path = (_repo_root / "nexus.db").resolve()
+_default_db_url = f"sqlite:///{_default_db_path.as_posix()}"
 
-# Enable SQLite foreign key constraint enforcement and busy timeout
+DATABASE_URL = os.getenv("DATABASE_URL", _default_db_url)
+
+# Enable SQLite foreign key constraint enforcement, busy timeout, and WAL concurrency mode
 @event.listens_for(Engine, "connect")
 def set_sqlite_pragma(dbapi_connection, connection_record):
-    """Ensure SQLite enforces foreign key constraints and sets a busy timeout on every connection."""
+    """Ensure SQLite enforces foreign key constraints, busy timeout, and WAL mode on every connection."""
     if "sqlite" in str(dbapi_connection):
         cursor = dbapi_connection.cursor()
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.execute("PRAGMA busy_timeout=5000")
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA synchronous=NORMAL")
         cursor.close()
 
 

@@ -22,14 +22,14 @@ class BusinessRepository:
         return self.db.get(Business, business_id)
 
     def create(self, business_in: BusinessCreate) -> Business:
-        """Create and persist a new business entity."""
+        """Create and stage a new business entity on the session."""
         business = Business(
             name=business_in.name,
             industry=business_in.industry
         )
         try:
             self.db.add(business)
-            self.db.commit()
+            self.db.flush()
             self.db.refresh(business)
             return business
         except Exception:

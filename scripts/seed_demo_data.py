@@ -35,6 +35,7 @@ import sys
 import argparse
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
+from decimal import Decimal
 
 # Ensure data-layer, recommendation-engine, and backend paths are available
 root_dir = Path(__file__).resolve().parent.parent
@@ -56,7 +57,7 @@ DEMO_PRODUCTS = [
         "name": "Pro 4K Ultra-HD Webcam",
         "category": "Video & Streaming",
         "sku": "CAM-4K-PRO",
-        "unit_price": 129.99,
+        "unit_price": Decimal("129.99"),
         "quantity": 4,
         "reorder_level": 20,
     },
@@ -64,7 +65,7 @@ DEMO_PRODUCTS = [
         "name": "Braided USB-C Fast-Charging Cable (2m)",
         "category": "Cables & Power",
         "sku": "CBL-USBC-2M",
-        "unit_price": 19.99,
+        "unit_price": Decimal("19.99"),
         "quantity": 12,
         "reorder_level": 35,
     },
@@ -72,7 +73,7 @@ DEMO_PRODUCTS = [
         "name": "Ultra-Lightweight Wireless Gaming Mouse",
         "category": "Peripherals",
         "sku": "MS-WIRELESS-PRO",
-        "unit_price": 59.99,
+        "unit_price": Decimal("59.99"),
         "quantity": 0,
         "reorder_level": 25,
     },
@@ -80,7 +81,7 @@ DEMO_PRODUCTS = [
         "name": "Studio Noise-Canceling Headphones",
         "category": "Audio",
         "sku": "AUD-ANC-PRO",
-        "unit_price": 199.99,
+        "unit_price": Decimal("199.99"),
         "quantity": 65,
         "reorder_level": 15,
     },
@@ -88,7 +89,7 @@ DEMO_PRODUCTS = [
         "name": "Legacy VGA to HDMI Display Adapter",
         "category": "Adapters",
         "sku": "ADP-VGA-HDMI",
-        "unit_price": 24.99,
+        "unit_price": Decimal("24.99"),
         "quantity": 140,
         "reorder_level": 20,
     },
@@ -96,7 +97,7 @@ DEMO_PRODUCTS = [
         "name": "RGB Mechanical Gaming Keyboard",
         "category": "Peripherals",
         "sku": "KB-MECH-RGB",
-        "unit_price": 99.99,
+        "unit_price": Decimal("99.99"),
         "quantity": 50,
         "reorder_level": 15,
     },
@@ -104,7 +105,7 @@ DEMO_PRODUCTS = [
         "name": "Heavy-Duty Aluminum Laptop Stand",
         "category": "Accessories",
         "sku": "ACC-LAPTOP-STD",
-        "unit_price": 34.99,
+        "unit_price": Decimal("34.99"),
         "quantity": 45,
         "reorder_level": 10,
     },
@@ -283,10 +284,9 @@ def seed_database_instance(db_path_or_url: str, force_reset: bool = True):
 
 
 def seed_all_known_databases(force_reset: bool = True):
-    """Seed both default root and backend database locations to guarantee sync."""
+    """Seed the authoritative root database location."""
     target_dbs = [
         root_dir / "nexus.db",
-        root_dir / "backend" / "nexus.db",
     ]
     
     seeded_ids = []

@@ -26,8 +26,24 @@ class InventoryRepository:
         stmt = select(Inventory).where(Inventory.product_id == product_id)
         return self.db.scalars(stmt).first()
 
+    def get_for_business(self, product_id: int, business_id: int) -> Optional[Inventory]:
+        """Retrieve the inventory record for a product strictly scoped to a specific business tenant."""
+        stmt = select(Inventory).join(Product, Inventory.product_id == Product.id).where(
+            Inventory.product_id == product_id,
+            Product.business_id == business_id
+        )
+        return self.db.scalars(stmt).first()
+
+    def count(self, business_id: Optional[int] = None) -> int:
+        """Count inventory records, optionally filtered by business ID."""
+        from sqlalchemy import func
+        stmt = select(func.count(Inventory.id))
+        if business_id is not None:
+            stmt = stmt.join(Product, Inventory.product_id == Product.id).where(Product.business_id == business_id)
+        return self.db.scalar(stmt) or 0
+
     def update(self, product_id: int, inventory_in: InventoryUpdate) -> Optional[Inventory]:
-        """Update inventory stock quantity and/or reorder level."""
+        """Update and stage inventory stock quantity and/or reorder level on session."""
         inventory = self.get_by_product_id(product_id)
         if not inventory:
             return None
@@ -38,7 +54,7 @@ class InventoryRepository:
             inventory.reorder_level = inventory_in.reorder_level
 
         try:
-            self.db.commit()
+            self.db.flush()
             self.db.refresh(inventory)
             return inventory
         except Exception:

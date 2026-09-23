@@ -1,7 +1,8 @@
 """Transaction and TransactionItem domain models."""
 from datetime import datetime, timezone
+from decimal import Decimal
 from typing import List, TYPE_CHECKING
-from sqlalchemy import Integer, String, Float, DateTime, ForeignKey, Index, CheckConstraint
+from sqlalchemy import Integer, String, Numeric, DateTime, ForeignKey, Index, CheckConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from database import Base
 
@@ -22,7 +23,7 @@ class Transaction(Base):
         index=True
     )
     transaction_type: Mapped[str] = mapped_column(String(50), nullable=False)
-    total_amount: Mapped[float] = mapped_column(Float, nullable=False)
+    total_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     transaction_date: Mapped[datetime] = mapped_column(
         DateTime,
         default=lambda: datetime.now(timezone.utc),
@@ -73,7 +74,7 @@ class TransactionItem(Base):
         index=True
     )
     quantity: Mapped[int] = mapped_column(Integer, nullable=False)
-    unit_price: Mapped[float] = mapped_column(Float, nullable=False)
+    unit_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
 
     __table_args__ = (
         CheckConstraint("quantity > 0", name="chk_transaction_item_quantity"),

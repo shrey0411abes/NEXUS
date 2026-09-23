@@ -52,6 +52,8 @@ dist-ssr/
 *.log
 *.sqlite
 *.db
+*.db-shm
+*.db-wal
 
 # IDE & OS
 .idea/

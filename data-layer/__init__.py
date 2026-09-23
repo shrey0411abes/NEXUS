@@ -13,10 +13,12 @@ from schemas import (
 )
 from repositories import (
     BusinessRepository,
+    UserRepository,
     ProductRepository,
     InventoryRepository,
     TransactionRepository,
 )
+from unit_of_work import AbstractUnitOfWork, SqlAlchemyUnitOfWork, get_uow_from_db
 
 __version__ = "0.2.0"
 
@@ -26,7 +28,11 @@ __all__ = [
     "SessionLocal",
     "get_db",
     "init_db",
+    "AbstractUnitOfWork",
+    "SqlAlchemyUnitOfWork",
+    "get_uow_from_db",
     "Business",
+    "User",
     "Product",
     "Inventory",
     "Transaction",
@@ -40,7 +46,9 @@ __all__ = [
     "TransactionCreate",
     "TransactionResponse",
     "BusinessRepository",
+    "UserRepository",
     "ProductRepository",
     "InventoryRepository",
     "TransactionRepository",
 ]
+

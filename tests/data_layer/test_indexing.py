@@ -2,6 +2,7 @@
 Tests for Phase 5 Database Indexing, Query Plans, Idempotency, and Equivalence.
 """
 from datetime import datetime, timezone, timedelta
+from decimal import Decimal
 from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
 
@@ -94,7 +95,7 @@ def test_indexed_query_result_equivalence(db_session: Session):
     # 1. Sales KPI
     sales_analyzer = SalesAnalyzer(db_session)
     kpis = sales_analyzer.get_business_kpis(business_id=biz.id, days=30)
-    assert kpis.total_revenue == 500.0
+    assert kpis.total_revenue == Decimal("500.00")
     assert kpis.total_transactions == 10
     assert kpis.total_units_sold == 10
 
@@ -102,12 +103,12 @@ def test_indexed_query_result_equivalence(db_session: Session):
     prod_metrics = sales_analyzer.get_product_sales_metrics(product_id=prod.id, days=30)
     assert prod_metrics is not None
     assert prod_metrics.total_units_sold == 10
-    assert prod_metrics.total_revenue == 500.0
+    assert prod_metrics.total_revenue == Decimal("500.00")
     assert prod_metrics.sales_velocity == round(10 / 30, 4)
 
     # 3. Financial Summary
     fin_analyzer = FinancialAnalyzer(db_session)
     fin_summary = fin_analyzer.get_business_financial_summary(business_id=biz.id, days=30)
     assert fin_summary.business_id == biz.id
-    assert fin_summary.total_daily_revenue_exposure == round(prod_metrics.sales_velocity * 50.0, 2)
-    assert fin_summary.total_retail_inventory_value_on_hand == 250.0  # 5 * $50
+    assert fin_summary.total_daily_revenue_exposure == Decimal("16.67")
+    assert fin_summary.total_retail_inventory_value_on_hand == Decimal("250.00")  # 5 * $50
