@@ -104,6 +104,14 @@ def test_prioritized_operational_risk_queue(db_session: Session):
     assert len(queue[0].supporting_facts) > 0
     assert queue[0].recommended_action != ""
 
+    # Augmented Phase 2 fields: 64-character SHA-256 fingerprint, default OPEN state, None audit fields
+    for item in queue:
+        assert len(item.risk_fingerprint) == 64
+        assert item.current_state == "OPEN"
+        assert item.last_actioned_at is None
+        assert item.last_actioned_by is None
+        assert item.last_action_note is None
+
 
 def test_deterministic_reproducibility(db_session: Session):
     """Test that identical inputs produce 100% identical correlation and priority outputs."""
@@ -179,5 +187,33 @@ def test_cross_domain_accelerating_depletion(db_session: Session):
     assert len(correlations) == 1
     assert correlations[0].correlation_type in ["ACCELERATING_DEPLETION", "SURGE_STOCKOUT_SQUEEZE"]
     assert correlations[0].severity in ["CRITICAL", "HIGH"]
+
+
+def test_generate_risk_fingerprint_deterministic_properties():
+    """Verify deterministic SHA-256 fingerprint generation across tenants, categories, and products."""
+    from cross_domain_engine import generate_risk_fingerprint
+
+    fp1 = generate_risk_fingerprint(1, "SURGE_STOCKOUT_SQUEEZE", 10)
+    fp2 = generate_risk_fingerprint(1, "SURGE_STOCKOUT_SQUEEZE", 10)
+    assert fp1 == fp2
+    assert len(fp1) == 64
+
+    # Product ID difference alters fingerprint
+    fp_diff_prod = generate_risk_fingerprint(1, "SURGE_STOCKOUT_SQUEEZE", 11)
+    assert fp1 != fp_diff_prod
+
+    # Business ID difference alters fingerprint
+    fp_diff_biz = generate_risk_fingerprint(2, "SURGE_STOCKOUT_SQUEEZE", 10)
+    assert fp1 != fp_diff_biz
+
+    # Risk category difference alters fingerprint
+    fp_diff_cat = generate_risk_fingerprint(1, "STOCKOUT_IMMINENT", 10)
+    assert fp1 != fp_diff_cat
+
+    # None product_id (global/unassigned risk) returns valid 64-char hash
+    fp_none = generate_risk_fingerprint(1, "GLOBAL_SUPPLY_CHAIN_RISK", None)
+    assert len(fp_none) == 64
+    assert fp_none != fp1
+
 
 

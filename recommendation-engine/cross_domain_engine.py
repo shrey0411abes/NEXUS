@@ -5,6 +5,7 @@ and Operational Risk Prioritization Engine (Phase 3B).
 Preserves the strict data-intelligence hierarchy:
 SQLite -> Deterministic Analytics -> Verified Business Facts -> Correlations -> Operational Priority -> AI/LLM.
 """
+import hashlib
 from typing import List, Dict, Optional, Tuple
 from sqlalchemy.orm import Session
 
@@ -16,6 +17,19 @@ from correlation_models import (
     PrioritizedRiskAction,
     CrossDomainAnalysisResult,
 )
+
+
+def generate_risk_fingerprint(
+    business_id: int,
+    risk_category: str,
+    product_id: Optional[int] = None,
+) -> str:
+    """
+    Generate a deterministic natural key identifying a risk entity across repeated polls.
+    Computes a 64-character SHA-256 hash of (business_id, risk_category, product_id).
+    """
+    payload = f"{business_id}:{risk_category}:{product_id if product_id is not None else 'global'}"
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
 class CrossDomainEngine:
@@ -240,11 +254,19 @@ class CrossDomainEngine:
                 impact = f"Operational attention needed for '{corr.product_name}' under {corr.correlation_type}."
                 action = f"Inspect inventory position and sales velocity for '{corr.product_name}'."
 
+            fingerprint = generate_risk_fingerprint(
+                business_id=business_id,
+                risk_category=corr.correlation_type,
+                product_id=corr.product_id,
+            )
+
             action_queue.append(
                 PrioritizedRiskAction(
                     priority_rank=1,  # Will be assigned after sorting
                     priority_score=score,
                     business_id=business_id,
+                    risk_fingerprint=fingerprint,
+                    current_state="OPEN",
                     product_id=corr.product_id,
                     product_name=corr.product_name,
                     sku=corr.sku,

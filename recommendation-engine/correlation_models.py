@@ -1,4 +1,5 @@
 """Domain models for deterministic cross-domain risk correlations and operational risk prioritization."""
+from datetime import datetime
 from typing import Dict, List, Optional, Any
 # pyrefly: ignore [missing-import]
 from pydantic import BaseModel, ConfigDict, Field
@@ -45,6 +46,8 @@ class PrioritizedRiskAction(BaseModel):
     priority_rank: int = Field(..., ge=1, description="Deterministic priority ranking (1 = highest urgency)")
     priority_score: float = Field(..., ge=0.0, le=100.0, description="Deterministic composite risk score [0-100]")
     business_id: int = Field(..., description="Target business identifier")
+    risk_fingerprint: str = Field(default="", description="Deterministic natural key identifying the risk entity across polls")
+    current_state: str = Field(default="OPEN", description="Operational lifecycle state: OPEN, ACKNOWLEDGED, RESOLVED, DISMISSED")
     product_id: Optional[int] = Field(None, description="Affected product ID if product-specific")
     product_name: Optional[str] = Field(None, description="Product catalog name")
     sku: Optional[str] = Field(None, description="Stock Keeping Unit")
@@ -55,6 +58,9 @@ class PrioritizedRiskAction(BaseModel):
     impact_summary: str = Field(..., description="Business impact explanation grounded in facts")
     recommended_action: str = Field(..., description="Deterministic recommended operational action")
     source_status: str = Field(default="VERIFIED_FACT", description="Source data status")
+    last_actioned_at: Optional[datetime] = Field(None, description="Timestamp of the most recent lifecycle transition")
+    last_actioned_by: Optional[int] = Field(None, description="User ID of the actor who performed the transition, or None if system")
+    last_action_note: Optional[str] = Field(None, description="Context note from the latest action")
 
     model_config = ConfigDict(from_attributes=True)
 
