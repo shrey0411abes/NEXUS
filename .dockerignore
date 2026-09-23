@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+
+# Node
+node_modules/
+frontend/dist/
+frontend/node_modules/
+
+# The chat-generated scaffold — not part of the deployable app yet
+frontend-v2/
+
+# VCS / editor
+.git/
+.gitignore
+.vscode/
+.idea/
+
+# Env / secrets — never bake these into an image
+.env
+.env.*
+
+# Existing db files — the container should build/migrate its own
+nexus.db
+backend/nexus.db
+*.db-wal
+*.db-shm
+
+# Docs / misc
+docs/
+*.md
+
+# Extras confirmed present in this repo
+.pytest_cache/
+scratch/
