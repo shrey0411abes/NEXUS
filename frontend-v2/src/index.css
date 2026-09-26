@@ -39,20 +39,15 @@
   --risk-glow: rgba(244, 63, 94, 0.25);
   --risk-bg: rgba(244, 63, 94, 0.10);
 
-  --ack: #f59e0b;
-  --ack-light: #fbbf24;
-  --ack-glow: rgba(245, 158, 11, 0.22);
-  --ack-bg: rgba(245, 158, 11, 0.10);
+  --ack: #C98A2C;
+  --ack-light: #e0a346;
+  --ack-glow: rgba(201, 138, 44, 0.25);
+  --ack-bg: rgba(201, 138, 44, 0.12);
 
   --resolved: #2E9E83;
   --resolved-light: #48c9a6;
   --resolved-glow: rgba(46, 158, 131, 0.25);
   --resolved-bg: rgba(46, 158, 131, 0.12);
-
-  --dismissed: #64748b;
-  --dismissed-light: #94a3b8;
-  --dismissed-glow: rgba(100, 116, 139, 0.22);
-  --dismissed-bg: rgba(100, 116, 139, 0.10);
 
   --cyan: #06b6d4;
   --cyan-glow: rgba(6, 182, 212, 0.22);
@@ -4550,7 +4545,7 @@ button {
   }
 }
 
-/* ACKNOWLEDGED: Amber (--ack: #f59e0b) */
+/* ACKNOWLEDGED: Amber (--ack: #C98A2C) */
 @keyframes rowHighlightAck {
   0% {
     background-color: var(--ack-bg) !important;
@@ -4559,7 +4554,7 @@ button {
     transform: scale(1.01);
   }
   30% {
-    background-color: rgba(245, 158, 11, 0.18) !important;
+    background-color: rgba(201, 138, 44, 0.18) !important;
     border-color: var(--ack-light) !important;
     box-shadow: 0 0 16px var(--ack-glow) !important;
     transform: scale(1);
@@ -4572,18 +4567,18 @@ button {
   }
 }
 
-/* DISMISSED: Slate Muted (--dismissed: #64748b) */
+/* DISMISSED: Slate Muted (Derived from --text-muted: #64748b) */
 @keyframes rowHighlightDismissed {
   0% {
-    background-color: var(--dismissed-bg) !important;
-    border-color: var(--dismissed) !important;
-    box-shadow: 0 0 24px var(--dismissed-glow), inset 0 0 12px var(--dismissed-bg) !important;
+    background-color: rgba(100, 116, 139, 0.10) !important;
+    border-color: var(--text-muted) !important;
+    box-shadow: 0 0 24px rgba(100, 116, 139, 0.22), inset 0 0 12px rgba(100, 116, 139, 0.10) !important;
     transform: scale(1.008);
   }
   30% {
     background-color: rgba(100, 116, 139, 0.16) !important;
-    border-color: var(--dismissed-light) !important;
-    box-shadow: 0 0 14px var(--dismissed-glow) !important;
+    border-color: var(--text-secondary) !important;
+    box-shadow: 0 0 14px rgba(100, 116, 139, 0.22) !important;
     transform: scale(1);
   }
   100% {
