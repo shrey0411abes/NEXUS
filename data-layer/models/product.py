@@ -2,7 +2,7 @@
 from datetime import datetime, timezone
 from decimal import Decimal
 from typing import List, Optional, TYPE_CHECKING
-from sqlalchemy import Integer, String, Numeric, DateTime, ForeignKey, UniqueConstraint, CheckConstraint
+from sqlalchemy import Integer, String, Numeric, DateTime, ForeignKey, UniqueConstraint, CheckConstraint, Boolean, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from database import Base
 
@@ -27,6 +27,13 @@ class Product(Base):
     category: Mapped[str] = mapped_column(String(100), nullable=False)
     sku: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     unit_price: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True,
+        server_default=text("1"),
+        nullable=False,
+        index=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
         default=lambda: datetime.now(timezone.utc),

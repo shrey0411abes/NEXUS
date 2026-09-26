@@ -23,9 +23,21 @@ class ProductCreate(ProductBase):
     reorder_level: int = Field(default=10, ge=0, description="Initial reorder threshold")
 
 
+class ProductUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=255, description="Product catalog name")
+    category: Optional[str] = Field(None, min_length=1, max_length=100, description="Product category")
+    sku: Optional[str] = Field(None, min_length=1, max_length=100, description="Unique Stock Keeping Unit code")
+    unit_price: Optional[Decimal] = Field(None, ge=Decimal("0.0"), decimal_places=2, description="Unit price in currency units")
+
+    @field_serializer("unit_price", when_used="json-unless-none")
+    def serialize_unit_price(self, v: Optional[Decimal]) -> Optional[float]:
+        return float(v) if v is not None else None
+
+
 class ProductResponse(ProductBase):
     id: int
     business_id: int
+    is_active: bool = True
     created_at: datetime
     inventory: Optional[InventoryResponse] = None
 

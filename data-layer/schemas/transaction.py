@@ -1,8 +1,20 @@
 """Pydantic schemas for Transaction and TransactionItem entities."""
 from datetime import datetime
-from decimal import Decimal
-from typing import List, Optional
+from decimal import Decimal, ROUND_HALF_UP
+from typing import Any, List, Optional, Sequence
 from pydantic import BaseModel, ConfigDict, Field, field_serializer
+
+
+def calculate_transaction_total(items: Sequence[Any]) -> Decimal:
+    """
+    Canonical server authority for transaction total calculation.
+    Uses exact Decimal arithmetic and ROUND_HALF_UP quantization to 2 decimal places.
+    """
+    raw_total = sum(
+        (Decimal(str(item.quantity)) * Decimal(str(item.unit_price)) for item in items),
+        Decimal("0.00")
+    )
+    return raw_total.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
 class TransactionItemBase(BaseModel):

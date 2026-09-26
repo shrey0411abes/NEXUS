@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from models.product import Product
 from models.inventory import Inventory
-from schemas.product import ProductCreate
+from schemas.product import ProductCreate, ProductUpdate
 
 
 class ProductRepository:
@@ -14,11 +14,19 @@ class ProductRepository:
     def __init__(self, db: Session) -> None:
         self.db = db
 
-    def get_all(self, business_id: Optional[int] = None, limit: int = 100, offset: int = 0) -> List[Product]:
-        """Retrieve products, optionally filtered by business ID."""
+    def get_all(
+        self,
+        business_id: Optional[int] = None,
+        limit: int = 100,
+        offset: int = 0,
+        include_archived: bool = False,
+    ) -> List[Product]:
+        """Retrieve products, optionally filtered by business ID and active status."""
         stmt = select(Product).order_by(Product.id.asc())
         if business_id is not None:
             stmt = stmt.where(Product.business_id == business_id)
+        if not include_archived:
+            stmt = stmt.where(Product.is_active.is_(True))
         stmt = stmt.offset(offset).limit(limit)
         return list(self.db.scalars(stmt).all())
 
@@ -71,6 +79,51 @@ class ProductRepository:
                 reorder_level=product_in.reorder_level,
             )
             self.db.add(inventory)
+            self.db.flush()
+            self.db.refresh(product)
+            return product
+        except Exception:
+            self.db.rollback()
+            raise
+
+    def update(
+        self,
+        product_id: int,
+        product_in: ProductUpdate,
+        business_id: Optional[int] = None,
+    ) -> Optional[Product]:
+        """Update and stage product attributes on the session."""
+        product = self.get_for_business(product_id, business_id) if business_id else self.get_by_id(product_id)
+        if not product:
+            return None
+
+        if product_in.name is not None:
+            product.name = product_in.name.strip()
+        if product_in.category is not None:
+            product.category = product_in.category.strip()
+        if product_in.sku is not None:
+            product.sku = product_in.sku.strip()
+        if product_in.unit_price is not None:
+            product.unit_price = Decimal(str(product_in.unit_price)).quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            )
+
+        try:
+            self.db.flush()
+            self.db.refresh(product)
+            return product
+        except Exception:
+            self.db.rollback()
+            raise
+
+    def archive(self, product_id: int, business_id: Optional[int] = None) -> Optional[Product]:
+        """Mark product as inactive (soft archival). Idempotent."""
+        product = self.get_for_business(product_id, business_id) if business_id else self.get_by_id(product_id)
+        if not product:
+            return None
+
+        product.is_active = False
+        try:
             self.db.flush()
             self.db.refresh(product)
             return product

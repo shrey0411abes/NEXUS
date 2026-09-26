@@ -4,7 +4,7 @@ from typing import List, Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from models.transaction import Transaction, TransactionItem
-from schemas.transaction import TransactionCreate
+from schemas.transaction import TransactionCreate, calculate_transaction_total
 
 
 class TransactionRepository:
@@ -45,16 +45,20 @@ class TransactionRepository:
         """Stage creation of a new transaction with associated line items on the session."""
         from models.product import Product
 
-        # Calculate total amount if omitted
-        total_amount = transaction_in.total_amount
-        if total_amount is None:
-            raw_total = sum(
-                (Decimal(str(item.quantity)) * Decimal(str(item.unit_price)) for item in transaction_in.items),
-                Decimal("0.00")
+        # Authoritative total calculation using canonical calculation logic
+        calculated_total = calculate_transaction_total(transaction_in.items)
+        if transaction_in.total_amount is not None:
+            supplied_total = Decimal(str(transaction_in.total_amount)).quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
             )
-            total_amount = raw_total.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            if supplied_total != calculated_total:
+                raise ValueError(
+                    f"Transaction total mismatch: supplied {supplied_total} "
+                    f"does not match calculated total {calculated_total}"
+                )
+            total_amount = calculated_total
         else:
-            total_amount = Decimal(str(total_amount)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            total_amount = calculated_total
 
         transaction = Transaction(
             business_id=transaction_in.business_id,

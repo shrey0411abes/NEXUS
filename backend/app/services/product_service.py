@@ -5,7 +5,7 @@ from sqlalchemy.exc import IntegrityError
 
 from unit_of_work import AbstractUnitOfWork
 from models.product import Product
-from schemas.product import ProductCreate
+from schemas.product import ProductCreate, ProductUpdate
 
 
 class ProductService:
@@ -14,11 +14,22 @@ class ProductService:
     def __init__(self, uow: AbstractUnitOfWork) -> None:
         self.uow = uow
 
-    def get_products(self, business_id: int, limit: int = 100, offset: int = 0) -> List[Product]:
+    def get_products(
+        self,
+        business_id: int,
+        limit: int = 100,
+        offset: int = 0,
+        include_archived: bool = False,
+    ) -> List[Product]:
         """Retrieve all catalog products belonging to the authenticated tenant."""
         safe_limit = min(max(1, limit), 1000)
         safe_offset = max(0, offset)
-        return self.uow.products.get_all(business_id=business_id, limit=safe_limit, offset=safe_offset)
+        return self.uow.products.get_all(
+            business_id=business_id,
+            limit=safe_limit,
+            offset=safe_offset,
+            include_archived=include_archived,
+        )
 
     def get_product_by_id(self, business_id: int, product_id: int) -> Product:
         """
@@ -71,3 +82,90 @@ class ProductService:
                 status_code=status.HTTP_409_CONFLICT,
                 detail=f"Product with SKU '{product_in.sku}' already exists for this business",
             )
+
+    def update_product(
+        self,
+        business_id: int,
+        product_id: int,
+        product_in: ProductUpdate,
+    ) -> Product:
+        """
+        Update an existing product's attributes for the authenticated tenant.
+        Enforces tenant isolation, input normalization, and tenant-scoped SKU uniqueness.
+        """
+        product = self.uow.products.get_for_business(product_id=product_id, business_id=business_id)
+        if not product:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Product with ID {product_id} not found",
+            )
+
+        # Normalize and validate SKU if supplied
+        if product_in.sku is not None:
+            normalized_sku = product_in.sku.strip()
+            if not normalized_sku:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="SKU cannot be empty",
+                )
+            product_in.sku = normalized_sku
+
+            # Check tenant-scoped uniqueness if SKU is changing
+            if normalized_sku != product.sku:
+                existing_sku = self.uow.products.get_by_sku(business_id, normalized_sku)
+                if existing_sku and existing_sku.id != product_id:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail=f"Product with SKU '{normalized_sku}' already exists for this business",
+                    )
+
+        if product_in.name is not None:
+            normalized_name = product_in.name.strip()
+            if not normalized_name:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="Product name cannot be empty",
+                )
+            product_in.name = normalized_name
+
+        if product_in.category is not None:
+            normalized_category = product_in.category.strip()
+            if not normalized_category:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="Product category cannot be empty",
+                )
+            product_in.category = normalized_category
+
+        try:
+            with self.uow:
+                updated = self.uow.products.update(
+                    product_id=product_id,
+                    product_in=product_in,
+                    business_id=business_id,
+                )
+                self.uow.commit()
+                return updated
+        except IntegrityError:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Product with SKU '{product_in.sku}' already exists for this business",
+            )
+
+    def archive_product(self, business_id: int, product_id: int) -> Product:
+        """
+        Soft-archive a product for the authenticated tenant.
+        Idempotent: archiving an already archived product succeeds safely.
+        """
+        product = self.uow.products.get_for_business(product_id=product_id, business_id=business_id)
+        if not product:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Product with ID {product_id} not found",
+            )
+
+        with self.uow:
+            archived = self.uow.products.archive(product_id=product_id, business_id=business_id)
+            self.uow.commit()
+            return archived
+

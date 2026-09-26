@@ -1,10 +1,11 @@
 """Transaction Application Service — tenant-isolated transaction processing."""
+from decimal import Decimal, ROUND_HALF_UP
 from typing import List
 from fastapi import HTTPException, status
 
 from unit_of_work import AbstractUnitOfWork
 from models.transaction import Transaction
-from schemas.transaction import TransactionCreate
+from schemas.transaction import TransactionCreate, calculate_transaction_total
 
 
 class TransactionService:
@@ -35,10 +36,28 @@ class TransactionService:
     def create_transaction(self, business_id: int, transaction_in: TransactionCreate) -> Transaction:
         """
         Record a new business transaction with line items within an atomic UoW transaction.
-        Enforces tenant binding and verifies every referenced product belongs to the authenticated tenant.
+        Enforces tenant binding, authoritative total validation, and product tenant isolation.
         """
         # Force authoritative tenant context
         transaction_in.business_id = business_id
+
+        # Canonical authoritative total calculation and validation
+        calculated_total = calculate_transaction_total(transaction_in.items)
+        if transaction_in.total_amount is not None:
+            supplied_total = Decimal(str(transaction_in.total_amount)).quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            )
+            if supplied_total != calculated_total:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=(
+                        f"Transaction total mismatch: supplied {supplied_total} "
+                        f"does not match authoritative calculated total {calculated_total}"
+                    ),
+                )
+            transaction_in.total_amount = calculated_total
+        else:
+            transaction_in.total_amount = calculated_total
 
         # Validate that every product belongs to the authenticated tenant
         for item in transaction_in.items:
@@ -61,6 +80,8 @@ class TransactionService:
                 return transaction
         except ValueError as exc:
             msg = str(exc)
+            if "total mismatch" in msg:
+                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=msg)
             if "does not exist" in msg:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=msg)
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=msg)

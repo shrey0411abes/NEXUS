@@ -52,11 +52,12 @@ def test_fresh_database_alembic_migration_lifecycle():
         # 3. Verify Alembic current version matches head
         with engine.connect() as conn:
             current_rev = conn.scalar(text("SELECT version_num FROM alembic_version"))
-            assert current_rev == "0004_risk_actions_schema"
+            assert current_rev == "0005_product_active_schema"
 
         # 4. Verify monetary column types on products and transactions
         product_cols = {col["name"]: col for col in inspector.get_columns("products")}
         assert "unit_price" in product_cols
+        assert "is_active" in product_cols
         # SQLite column types in SQLAlchemy reflection for Numeric(12, 2)
         assert str(product_cols["unit_price"]["type"]).startswith("NUMERIC")
 
