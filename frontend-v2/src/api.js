@@ -53,12 +53,25 @@ async function expectOk(response) {
       const body = await response.json();
       detail = body.detail || detail;
     } catch (_) { /* non-JSON error body */ }
+
+    if (response.status === 401) {
+      clearAuthToken();
+      cachedUserContext = null;
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('nexus-auth-state-changed'));
+      }
+    }
+
     throw new ApiError(response.status, detail);
   }
   return response;
 }
 
 // ─── Auth Functions ───────────────────────────────────────────────────────────
+
+export function hasAuthToken() {
+  return Boolean(getAuthToken());
+}
 
 export async function loginUser(request) {
   const response = await expectOk(await apiFetch('/api/v1/auth/login', {
@@ -67,6 +80,9 @@ export async function loginUser(request) {
   }));
   const data = await response.json();
   setAuthToken(data.access_token);
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('nexus-auth-state-changed'));
+  }
   return data;
 }
 
@@ -77,16 +93,38 @@ export async function registerUser(request) {
   }));
   const data = await response.json();
   setAuthToken(data.access_token);
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('nexus-auth-state-changed'));
+  }
   return data;
 }
 
 let cachedUserContext = null;
+let currentUserPromise = null;
 
 export async function fetchCurrentUser() {
-  const response = await expectOk(await apiFetch('/api/v1/auth/me'));
-  const data = await response.json();
-  cachedUserContext = data;
-  return data;
+  const token = getAuthToken();
+  if (!token) {
+    cachedUserContext = null;
+    throw new ApiError(401, 'No authentication token available');
+  }
+
+  if (currentUserPromise) {
+    return currentUserPromise;
+  }
+
+  currentUserPromise = (async () => {
+    try {
+      const response = await expectOk(await apiFetch('/api/v1/auth/me'));
+      const data = await response.json();
+      cachedUserContext = data;
+      return data;
+    } finally {
+      currentUserPromise = null;
+    }
+  })();
+
+  return currentUserPromise;
 }
 
 export function getCachedUserContext() {
@@ -96,6 +134,9 @@ export function getCachedUserContext() {
 export function logoutUser() {
   cachedUserContext = null;
   clearAuthToken();
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('nexus-auth-state-changed'));
+  }
 }
 
 // ─── Analytics / Dashboard ───────────────────────────────────────────────────
@@ -107,6 +148,11 @@ export async function fetchBusinessKPIs(days = 30) {
 
 export async function fetchBusinessTrends(days = 14) {
   const response = await expectOk(await apiFetch(`/api/v1/analytics/trends?days=${days}`));
+  return response.json();
+}
+
+export async function fetchRecommendations(days = 30) {
+  const response = await expectOk(await apiFetch(`/api/v1/recommendations?days=${days}`));
   return response.json();
 }
 
@@ -145,6 +191,47 @@ export async function fetchRiskActions(opts = {}) {
   return response.json();
 }
 
+// ─── Products ─────────────────────────────────────────────────────────────────
+
+export async function fetchProducts(opts = {}) {
+  const params = new URLSearchParams();
+  if (opts.limit != null) params.set('limit', String(opts.limit));
+  if (opts.offset != null) params.set('offset', String(opts.offset));
+  if (opts.include_archived != null) params.set('include_archived', String(opts.include_archived));
+  const qs = params.toString() ? `?${params}` : '';
+  const response = await expectOk(await apiFetch(`/api/v1/products${qs}`));
+  return response.json();
+}
+
+export async function createProduct(product) {
+  const response = await expectOk(
+    await apiFetch('/api/v1/products', {
+      method: 'POST',
+      body: JSON.stringify(product),
+    }),
+  );
+  return response.json();
+}
+
+export async function updateProduct(productId, update) {
+  const response = await expectOk(
+    await apiFetch(`/api/v1/products/${productId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(update),
+    }),
+  );
+  return response.json();
+}
+
+export async function archiveProduct(productId) {
+  const response = await expectOk(
+    await apiFetch(`/api/v1/products/${productId}/archive`, {
+      method: 'POST',
+    }),
+  );
+  return response.json();
+}
+
 // ─── Inventory ────────────────────────────────────────────────────────────────
 
 export async function fetchInventory(limit = 100, offset = 0) {
@@ -173,6 +260,17 @@ export async function fetchTransactions(limit = 100, offset = 0) {
   );
   return response.json();
 }
+
+export async function createTransaction(transaction) {
+  const response = await expectOk(
+    await apiFetch('/api/v1/transactions', {
+      method: 'POST',
+      body: JSON.stringify(transaction),
+    }),
+  );
+  return response.json();
+}
+
 
 // ─── Financial Impact ─────────────────────────────────────────────────────────
 

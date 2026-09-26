@@ -4,6 +4,7 @@ import {
   Search,
   LayoutDashboard,
   AlertTriangle,
+  Boxes,
   Package,
   TrendingUp,
   Receipt,
@@ -11,8 +12,11 @@ import {
   History,
   FolderOpen,
   Archive,
-  ArrowRight,
   Sparkles,
+  Languages,
+  ArrowRight,
+  ShieldCheck,
+  Zap,
 } from 'lucide-react'
 import { useI18n } from '../i18n/index.jsx'
 
@@ -20,102 +24,124 @@ export default function CommandPalette({ isOpen, onClose }) {
   const [query, setQuery] = useState('')
   const [selectedIndex, setSelectedIndex] = useState(0)
   const inputRef = useRef(null)
+  const listRef = useRef(null)
   const navigate = useNavigate()
-  const { t } = useI18n()
+  const { t, lang, setLang } = useI18n()
 
-  const staticCommands = useMemo(() => [
+  const commands = useMemo(() => [
+    // 1. COMMAND & OVERVIEW
     {
       id: 'cmd-dashboard',
-      label: t('sidebar.commandCenter'),
-      category: t('sidebar.commandSection'),
+      label: t('sidebar.commandCenter') || 'Command Center',
+      category: t('sidebar.commandSection') || 'COMMAND',
       icon: LayoutDashboard,
       to: '/',
       shortcut: 'G D',
     },
+    // 2. OPERATIONS
+    {
+      id: 'cmd-inventory',
+      label: t('sidebar.inventoryIntelligence') || 'Inventory Intelligence',
+      category: t('sidebar.operationsSection') || 'OPERATIONS',
+      icon: Package,
+      to: '/inventory',
+      shortcut: 'G I',
+    },
+    {
+      id: 'cmd-products',
+      label: t('sidebar.productCatalog') || 'Product Catalog',
+      category: t('sidebar.operationsSection') || 'OPERATIONS',
+      icon: Boxes,
+      to: '/products',
+      shortcut: 'G P',
+    },
+    {
+      id: 'cmd-transactions',
+      label: t('sidebar.transactionIntelligence') || 'Transaction Intelligence',
+      category: t('sidebar.operationsSection') || 'OPERATIONS',
+      icon: Receipt,
+      to: '/transactions',
+      shortcut: 'G T',
+    },
+    // 3. INTELLIGENCE
     {
       id: 'cmd-risk',
-      label: t('sidebar.riskIntelligence'),
-      category: t('sidebar.intelligenceSection'),
+      label: t('sidebar.riskIntelligence') || 'Priority Risk Queue',
+      category: t('sidebar.intelligenceSection') || 'INTELLIGENCE',
       icon: AlertTriangle,
       to: '/risk-queue',
       shortcut: 'G R',
     },
     {
       id: 'cmd-financial',
-      label: t('sidebar.financialIntelligence'),
-      category: t('sidebar.intelligenceSection'),
+      label: t('sidebar.financialIntelligence') || 'Financial Exposure Terminal',
+      category: t('sidebar.intelligenceSection') || 'INTELLIGENCE',
       icon: TrendingUp,
       to: '/financial',
       shortcut: 'G F',
     },
     {
-      id: 'cmd-inventory',
-      label: t('sidebar.inventoryIntelligence'),
-      category: t('sidebar.intelligenceSection'),
-      icon: Package,
-      to: '/inventory',
-      shortcut: 'G I',
-    },
-    {
-      id: 'cmd-transactions',
-      label: t('sidebar.transactionIntelligence'),
-      category: t('sidebar.intelligenceSection'),
-      icon: Receipt,
-      to: '/transactions',
-      shortcut: 'G T',
-    },
-    {
       id: 'cmd-investigations',
-      label: t('sidebar.investigations'),
-      category: t('sidebar.intelligenceSection'),
+      label: t('sidebar.investigations') || 'Grounded AI Investigations',
+      category: t('sidebar.intelligenceSection') || 'INTELLIGENCE',
       icon: MessageSquareText,
       to: '/investigations',
       shortcut: 'G N',
     },
+    // 4. GOVERNANCE
     {
       id: 'cmd-activity',
-      label: t('sidebar.riskActivity'),
-      category: t('sidebar.resourcesSection'),
+      label: t('sidebar.riskActivity') || 'Operational Audit Stream',
+      category: t('sidebar.governanceSection') || 'GOVERNANCE',
       icon: History,
       to: '/activity',
       shortcut: 'G A',
     },
     {
-      id: 'cmd-resources',
-      label: t('sidebar.businessData'),
-      category: t('sidebar.resourcesSection'),
-      icon: FolderOpen,
-      to: '/resources',
-      shortcut: '',
-    },
-    {
       id: 'cmd-saved',
-      label: t('sidebar.savedInvestigations'),
-      category: t('sidebar.intelligenceSection'),
+      label: t('sidebar.savedInvestigations') || 'Investigation History',
+      category: t('sidebar.governanceSection') || 'GOVERNANCE',
       icon: Archive,
       to: '/saved-investigations',
       shortcut: '',
     },
-  ], [t])
+    {
+      id: 'cmd-resources',
+      label: t('sidebar.businessData') || 'System Topology & Documentation',
+      category: t('sidebar.governanceSection') || 'GOVERNANCE',
+      icon: FolderOpen,
+      to: '/resources',
+      shortcut: '',
+    },
+    // 5. PREFERENCES
+    {
+      id: 'cmd-lang-switch',
+      label: lang === 'en' ? 'Switch Interface to Hindi (हिन्दी)' : 'Switch Interface to English',
+      category: 'PREFERENCES',
+      icon: Languages,
+      action: () => setLang(lang === 'en' ? 'hi' : 'en'),
+      shortcut: 'ALT L',
+    },
+  ], [t, lang, setLang])
 
   useEffect(() => {
     if (isOpen) {
       setQuery('')
       setSelectedIndex(0)
-      setTimeout(() => inputRef.current?.focus(), 50)
+      setTimeout(() => inputRef.current?.focus(), 40)
     }
   }, [isOpen])
 
-  // Key combination listener for global two-key chords (e.g., G then D)
+  // Key combination listener for global two-key chords (e.g. G then D)
   useEffect(() => {
     let lastKey = ''
     let keyTimeout = null
 
     const handleKeyDown = (e) => {
-      const tag = e.target.tagName.toLowerCase()
+      const tag = e.target.tagName?.toLowerCase()
       if (tag === 'input' || tag === 'textarea') return
 
-      if (e.key.toLowerCase() === 'g') {
+      if (e.key?.toLowerCase() === 'g') {
         lastKey = 'g'
         clearTimeout(keyTimeout)
         keyTimeout = setTimeout(() => { lastKey = '' }, 800)
@@ -123,13 +149,14 @@ export default function CommandPalette({ isOpen, onClose }) {
       }
 
       if (lastKey === 'g') {
-        const next = e.key.toLowerCase()
+        const next = e.key?.toLowerCase()
         lastKey = ''
         clearTimeout(keyTimeout)
         if (next === 'd') { e.preventDefault(); navigate('/') }
         else if (next === 'r') { e.preventDefault(); navigate('/risk-queue') }
         else if (next === 'f') { e.preventDefault(); navigate('/financial') }
         else if (next === 'i') { e.preventDefault(); navigate('/inventory') }
+        else if (next === 'p') { e.preventDefault(); navigate('/products') }
         else if (next === 't') { e.preventDefault(); navigate('/transactions') }
         else if (next === 'a') { e.preventDefault(); navigate('/activity') }
         else if (next === 'n') { e.preventDefault(); navigate('/investigations') }
@@ -143,16 +170,24 @@ export default function CommandPalette({ isOpen, onClose }) {
     }
   }, [navigate])
 
-  const filteredCommands = staticCommands.filter((cmd) =>
-    cmd.label.toLowerCase().includes(query.toLowerCase()) ||
-    cmd.category.toLowerCase().includes(query.toLowerCase())
-  )
+  const filteredCommands = useMemo(() => {
+    if (!query.trim()) return commands
+    const q = query.toLowerCase()
+    return commands.filter((cmd) =>
+      cmd.label.toLowerCase().includes(q) ||
+      cmd.category.toLowerCase().includes(q)
+    )
+  }, [commands, query])
 
   const hasDirectQuestion = query.trim().length > 0
 
   const handleSelect = (cmd) => {
     onClose()
-    navigate(cmd.to)
+    if (cmd.action) {
+      cmd.action()
+    } else if (cmd.to) {
+      navigate(cmd.to)
+    }
   }
 
   const handleAskQuestion = () => {
@@ -167,12 +202,12 @@ export default function CommandPalette({ isOpen, onClose }) {
       onClose()
     } else if (e.key === 'ArrowDown') {
       e.preventDefault()
-      const max = hasDirectQuestion ? filteredCommands.length : filteredCommands.length - 1
-      setSelectedIndex((prev) => (prev < max ? prev + 1 : 0))
+      const total = hasDirectQuestion ? filteredCommands.length + 1 : filteredCommands.length
+      setSelectedIndex((prev) => (prev < total - 1 ? prev + 1 : 0))
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
-      const max = hasDirectQuestion ? filteredCommands.length : filteredCommands.length - 1
-      setSelectedIndex((prev) => (prev > 0 ? prev - 1 : max))
+      const total = hasDirectQuestion ? filteredCommands.length + 1 : filteredCommands.length
+      setSelectedIndex((prev) => (prev > 0 ? prev - 1 : total - 1))
     } else if (e.key === 'Enter') {
       e.preventDefault()
       if (hasDirectQuestion && selectedIndex === 0) {
@@ -192,14 +227,14 @@ export default function CommandPalette({ isOpen, onClose }) {
 
   return (
     <div className="palette-backdrop" onClick={onClose}>
-      <div className="palette-box" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+      <div className="palette-box" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Command Palette">
         <div className="palette-input-wrap">
-          <Search size={16} color="var(--text-muted)" />
+          <Search size={16} className="palette-search-icon" />
           <input
             ref={inputRef}
             type="text"
             className="palette-input"
-            placeholder={t('commandPalette.placeholder')}
+            placeholder={t('commandPalette.placeholder') || 'Type a command, navigate, or ask any business question...'}
             value={query}
             onChange={(e) => {
               setQuery(e.target.value)
@@ -210,22 +245,28 @@ export default function CommandPalette({ isOpen, onClose }) {
           <kbd className="topbar-kbd">ESC</kbd>
         </div>
 
-        <div className="palette-list">
-          {/* Ask AI prompt option if user typed something */}
+        <div className="palette-list" ref={listRef}>
+          {/* Direct AI Question trigger if query is typed */}
           {hasDirectQuestion && (
             <div
-              className={`palette-item ${selectedIndex === 0 ? 'selected' : ''}`}
+              className={`palette-item palette-item-ai ${selectedIndex === 0 ? 'selected' : ''}`}
               onClick={handleAskQuestion}
+              onMouseEnter={() => setSelectedIndex(0)}
             >
               <div className="palette-item-left">
-                <Sparkles size={15} color="var(--brand-light)" />
-                <span>
-                  {t('dashboard.askNexus')}: <strong style={{ color: '#fff' }}>“{query}”</strong>
-                </span>
+                <div className="palette-item-icon-box ai">
+                  <Sparkles size={14} />
+                </div>
+                <div>
+                  <span className="palette-item-title">
+                    {t('dashboard.askNexus') || 'Ask NEXUS'}: <strong style={{ color: '#fff' }}>“{query}”</strong>
+                  </span>
+                  <p className="palette-item-desc">
+                    {t('commandPalette.pressEnterToAsk') || 'Press Enter to investigate with deterministic SQL facts'}
+                  </p>
+                </div>
               </div>
-              <span className="mono" style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                {t('commandPalette.pressEnterToAsk')}
-              </span>
+              <span className="palette-badge-kbd">ENTER ↵</span>
             </div>
           )}
 
@@ -240,13 +281,13 @@ export default function CommandPalette({ isOpen, onClose }) {
                 onMouseEnter={() => setSelectedIndex(itemIndex)}
               >
                 <div className="palette-item-left">
-                  <Icon size={15} color="var(--text-muted)" />
-                  <span>{cmd.label}</span>
+                  <div className="palette-item-icon-box">
+                    <Icon size={14} />
+                  </div>
+                  <span className="palette-item-title">{cmd.label}</span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 10.5, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                    {cmd.category}
-                  </span>
+                <div className="palette-item-right">
+                  <span className="palette-item-category">{cmd.category}</span>
                   {cmd.shortcut && (
                     <kbd className="topbar-kbd">{cmd.shortcut}</kbd>
                   )}
@@ -256,16 +297,23 @@ export default function CommandPalette({ isOpen, onClose }) {
           })}
 
           {!hasDirectQuestion && filteredCommands.length === 0 && (
-            <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+            <div className="palette-empty-box">
               {t('commandPalette.noResults', { query })}
             </div>
           )}
         </div>
 
-        <div className="palette-footer">
-          <span>{t('commandPalette.shortcutHint')}</span>
-          <span style={{ marginLeft: 'auto', color: 'var(--brand-light)' }}>{t('global.appName')} {t('global.codeCalculatesAiExplains')}</span>
-        </div>
+        <footer className="palette-footer">
+          <div className="palette-footer-keys">
+            <span><kbd className="topbar-kbd">↑</kbd> <kbd className="topbar-kbd">↓</kbd> navigate</span>
+            <span><kbd className="topbar-kbd">↵</kbd> select</span>
+            <span><kbd className="topbar-kbd">ESC</kbd> dismiss</span>
+          </div>
+          <div className="palette-footer-brand">
+            <span className="status-dot-pulse" />
+            <span>NEXUS WORKSTATION</span>
+          </div>
+        </footer>
       </div>
     </div>
   )

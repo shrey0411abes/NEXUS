@@ -12,6 +12,8 @@ import {
   Sparkles,
 } from 'lucide-react'
 import Topbar from '../components/Topbar.jsx'
+import ErrorBoundary from '../components/ErrorBoundary.jsx'
+import { CardSkeleton, Skeleton } from '../components/Skeleton.jsx'
 import { fetchInvestigationHistory } from '../api.js'
 
 function formatDateTime(isoString) {
@@ -156,29 +158,39 @@ export default function SavedInvestigations({ onToggleMobileMenu }) {
             marginBottom: 24,
           }}
         >
-          <div className="card" style={{ padding: 18 }}>
-            <span style={{ fontSize: 11, textTransform: 'uppercase', color: 'var(--text-muted)' }}>Total Inquiries</span>
-            <div className="mono" style={{ fontSize: 26, fontWeight: 700, color: '#fff', margin: '4px 0 2px' }}>
-              {summary.total}
-            </div>
-            <span style={{ fontSize: 11.5, color: 'var(--text-secondary)' }}>Archived reasoning runs</span>
-          </div>
+          {history.loading ? (
+            <>
+              <CardSkeleton height={96} />
+              <CardSkeleton height={96} />
+              <CardSkeleton height={96} />
+            </>
+          ) : (
+            <>
+              <div className="card" style={{ padding: 18 }}>
+                <span style={{ fontSize: 11, textTransform: 'uppercase', color: 'var(--text-muted)' }}>Total Inquiries</span>
+                <div className="mono" style={{ fontSize: 26, fontWeight: 700, color: '#fff', margin: '4px 0 2px' }}>
+                  {summary.total}
+                </div>
+                <span style={{ fontSize: 11.5, color: 'var(--text-secondary)' }}>Archived reasoning runs</span>
+              </div>
 
-          <div className="card" style={{ padding: 18, borderColor: 'rgba(0, 230, 118, 0.25)' }}>
-            <span style={{ fontSize: 11, textTransform: 'uppercase', color: 'var(--resolved-light)' }}>High Calibrated Confidence</span>
-            <div className="mono" style={{ fontSize: 26, fontWeight: 700, color: 'var(--resolved-light)', margin: '4px 0 2px' }}>
-              {summary.high}
-            </div>
-            <span style={{ fontSize: 11.5, color: 'var(--text-secondary)' }}>Strictly verified claims</span>
-          </div>
+              <div className="card" style={{ padding: 18, borderColor: 'rgba(0, 230, 118, 0.25)' }}>
+                <span style={{ fontSize: 11, textTransform: 'uppercase', color: 'var(--resolved-light)' }}>High Calibrated Confidence</span>
+                <div className="mono" style={{ fontSize: 26, fontWeight: 700, color: 'var(--resolved-light)', margin: '4px 0 2px' }}>
+                  {summary.high}
+                </div>
+                <span style={{ fontSize: 11.5, color: 'var(--text-secondary)' }}>Strictly verified claims</span>
+              </div>
 
-          <div className="card" style={{ padding: 18, borderColor: 'rgba(79, 117, 255, 0.25)' }}>
-            <span style={{ fontSize: 11, textTransform: 'uppercase', color: 'var(--brand-light)' }}>Avg Execution Speed</span>
-            <div className="mono" style={{ fontSize: 26, fontWeight: 700, color: 'var(--brand-light)', margin: '4px 0 2px' }}>
-              {summary.avgDuration} ms
-            </div>
-            <span style={{ fontSize: 11.5, color: 'var(--text-secondary)' }}>SQL query + LLM synthesis</span>
-          </div>
+              <div className="card" style={{ padding: 18, borderColor: 'rgba(79, 117, 255, 0.25)' }}>
+                <span style={{ fontSize: 11, textTransform: 'uppercase', color: 'var(--brand-light)' }}>Avg Execution Speed</span>
+                <div className="mono" style={{ fontSize: 26, fontWeight: 700, color: 'var(--brand-light)', margin: '4px 0 2px' }}>
+                  {summary.avgDuration} ms
+                </div>
+                <span style={{ fontSize: 11.5, color: 'var(--text-secondary)' }}>SQL query + LLM synthesis</span>
+              </div>
+            </>
+          )}
         </div>
 
         {/* ── Filter Controls ─────────────────────────────────────────── */}
@@ -225,89 +237,105 @@ export default function SavedInvestigations({ onToggleMobileMenu }) {
         </div>
 
         {/* ── Inquiry Cards Stream ────────────────────────────────────── */}
-        {history.loading ? (
-          <div className="state-box">Loading personal intelligence library…</div>
-        ) : history.error ? (
-          <div className="state-box error">
-            <span>{history.error}</span>
-            <button type="button" className="btn-retry" onClick={loadHistory}>Retry</button>
-          </div>
-        ) : filteredList.length === 0 ? (
-          <div className="card">
-            <div className="empty-state">
-              <p style={{ margin: '0 0 12px' }}>No matching investigation inquiries in this view.</p>
-              <Link to="/investigations" className="btn-command-action primary" style={{ display: 'inline-flex' }}>
-                Launch New Inquiry
-              </Link>
-            </div>
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {filteredList.map((item) => (
-              <div key={item.id} className="card" style={{ padding: '20px 24px' }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 12 }}>
-                  <div>
-                    <h3 style={{ fontSize: 16, fontWeight: 700, color: '#fff', letterSpacing: '-0.01em' }}>
-                      “{item.question}”
-                    </h3>
+        <ErrorBoundary title="Personal Intelligence Library" onRetry={loadHistory}>
+          {history.loading ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="card" style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Skeleton width="45%" height={18} />
+                    <Skeleton width="20%" height={22} borderRadius="var(--radius-full)" />
                   </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-                    <span
-                      className={`pill ${item.confidence === 'HIGH' ? 'resolved' : item.confidence === 'MEDIUM' ? 'acknowledged' : 'open'}`}
-                    >
-                      {item.confidence} CONFIDENCE
-                    </span>
-                    {item.verification_status && (
-                      <span className="pill resolved">
-                        {item.verification_status}
-                      </span>
-                    )}
+                  <Skeleton width="100%" height={42} />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 10, borderTop: '1px solid var(--border-subtle)' }}>
+                    <Skeleton width="30%" height={14} />
+                    <Skeleton width="22%" height={26} borderRadius="var(--radius-sm)" />
                   </div>
                 </div>
-
-                {item.answer && (
-                  <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 16, background: 'rgba(255,255,255,0.02)', padding: '12px 16px', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-subtle)' }}>
-                    {item.answer}
-                  </p>
-                )}
-
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, paddingTop: 10, borderTop: '1px solid var(--border-subtle)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontSize: 11.5, color: 'var(--text-muted)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                      <Clock size={12} />
-                      <span className="mono">{formatRelativeTime(item.created_at)}</span>
-                      <span style={{ color: 'var(--text-faint)' }}>({formatDateTime(item.created_at)})</span>
+              ))}
+            </div>
+          ) : history.error ? (
+            <div className="state-box error">
+              <span>{history.error}</span>
+              <button type="button" className="btn-retry" onClick={loadHistory}>Retry</button>
+            </div>
+          ) : filteredList.length === 0 ? (
+            <div className="card">
+              <div className="empty-state">
+                <p style={{ margin: '0 0 12px' }}>No matching investigation inquiries in this view.</p>
+                <Link to="/investigations" className="btn-command-action primary" style={{ display: 'inline-flex' }}>
+                  Launch New Inquiry
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {filteredList.map((item) => (
+                <div key={item.id} className="card" style={{ padding: '20px 24px' }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 12 }}>
+                    <div>
+                      <h3 style={{ fontSize: 16, fontWeight: 700, color: '#fff', letterSpacing: '-0.01em' }}>
+                        “{item.question}”
+                      </h3>
                     </div>
 
-                    {item.execution_duration_ms != null && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                        <Zap size={12} color="var(--brand-light)" />
-                        <span className="mono">{Math.round(item.execution_duration_ms)}ms</span>
-                      </div>
-                    )}
-
-                    {item.provider && (
-                      <div>
-                        <span>Engine: <strong style={{ color: 'var(--text-secondary)' }}>{item.provider}</strong></span>
-                      </div>
-                    )}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                      <span
+                        className={`pill ${item.confidence === 'HIGH' ? 'resolved' : item.confidence === 'MEDIUM' ? 'acknowledged' : 'open'}`}
+                      >
+                        {item.confidence} CONFIDENCE
+                      </span>
+                      {item.verification_status && (
+                        <span className="pill resolved">
+                          {item.verification_status}
+                        </span>
+                      )}
+                    </div>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/investigations?q=${encodeURIComponent(item.question)}`)}
-                    className="btn-command-action secondary"
-                    style={{ padding: '5px 12px', fontSize: 11.5 }}
-                  >
-                    <span>Re-Run Investigation</span>
-                    <ArrowRight size={12} />
-                  </button>
+                  {item.answer && (
+                    <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 16, background: 'rgba(255,255,255,0.02)', padding: '12px 16px', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-subtle)' }}>
+                      {item.answer}
+                    </p>
+                  )}
+
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, paddingTop: 10, borderTop: '1px solid var(--border-subtle)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontSize: 11.5, color: 'var(--text-muted)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <Clock size={12} />
+                        <span className="mono">{formatRelativeTime(item.created_at)}</span>
+                        <span style={{ color: 'var(--text-faint)' }}>({formatDateTime(item.created_at)})</span>
+                      </div>
+
+                      {item.execution_duration_ms != null && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                          <Zap size={12} color="var(--brand-light)" />
+                          <span className="mono">{Math.round(item.execution_duration_ms)}ms</span>
+                        </div>
+                      )}
+
+                      {item.provider && (
+                        <div>
+                          <span>Engine: <strong style={{ color: 'var(--text-secondary)' }}>{item.provider}</strong></span>
+                        </div>
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/investigations?q=${encodeURIComponent(item.question)}`)}
+                      className="btn-command-action secondary"
+                      style={{ padding: '5px 12px', fontSize: 11.5 }}
+                    >
+                      <span>Re-Run Investigation</span>
+                      <ArrowRight size={12} />
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </ErrorBoundary>
 
       </div>
     </>

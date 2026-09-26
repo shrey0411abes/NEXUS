@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import {
   Search,
-  RotateCw,
   Menu,
-  ShieldAlert,
-  ArrowUpRight,
-  ShieldCheck,
+  AlertTriangle,
+  Database,
+  ArrowRight,
+  RotateCw,
 } from 'lucide-react'
 import { getCachedUserContext } from '../api.js'
 import { useI18n } from '../i18n/index.jsx'
@@ -30,7 +30,7 @@ export default function Topbar({
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault()
         setIsPaletteOpen((prev) => !prev)
-      } else if (e.key === '/' && !['input', 'textarea'].includes(e.target.tagName.toLowerCase())) {
+      } else if (e.key === '/' && !['input', 'textarea'].includes(e.target.tagName?.toLowerCase())) {
         e.preventDefault()
         setIsPaletteOpen(true)
       }
@@ -39,7 +39,6 @@ export default function Topbar({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
-  // Format section breadcrumb cleanly
   const cleanTitle = title.replace(/^NEXUS\s+/i, '').toUpperCase()
 
   return (
@@ -56,10 +55,19 @@ export default function Topbar({
               <Menu size={18} />
             </button>
           )}
+
           <div className="topbar-breadcrumb">
-            <span className="topbar-breadcrumb-root">{t('global.appName')}</span>
+            <Link to="/" className="topbar-breadcrumb-root">NEXUS</Link>
             <span className="topbar-breadcrumb-sep">/</span>
             <span className="topbar-breadcrumb-current">{cleanTitle}</span>
+          </div>
+
+          <div className="topbar-engine-tag desktop-only">
+            <div className="status-dot-pulse-wrap" style={{ width: 8, height: 8 }}>
+              <span className="status-dot-radar-ring" />
+              <span className="status-dot-pulse" style={{ width: 6, height: 6 }} />
+            </div>
+            <span>SQLITE WAL</span>
           </div>
         </div>
 
@@ -72,14 +80,64 @@ export default function Topbar({
             aria-label="Open Command Palette (Ctrl+K)"
           >
             <div className="topbar-search-left">
-              <Search size={14} />
-              <span>{t('topbar.searchPlaceholder')}</span>
+              <Search size={14} className="topbar-search-icon" />
+              <span className="topbar-search-placeholder">
+                {t('topbar.searchPlaceholder') || 'Search NEXUS, commands, or ask AI...'}
+              </span>
             </div>
             <kbd className="topbar-kbd">Ctrl K</kbd>
           </button>
         </div>
 
         <div className="topbar-right">
+          {/* Refresh Action Trigger */}
+          {onRefresh && (
+            <button
+              type="button"
+              className="topbar-action-btn"
+              onClick={onRefresh}
+              disabled={isRefreshing}
+              title={isRefreshing ? t('global.refreshing') || 'Refreshing…' : t('global.refresh') || 'Refresh'}
+              aria-label={t('global.refresh') || 'Refresh data'}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 32,
+                height: 32,
+                borderRadius: 'var(--radius-xs)',
+                background: 'rgba(255, 255, 255, 0.04)',
+                border: '1px solid var(--border-subtle)',
+                color: isRefreshing ? 'var(--brand-light)' : 'var(--text-secondary)',
+                cursor: isRefreshing ? 'not-allowed' : 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <RotateCw
+                size={14}
+                style={{
+                  animation: isRefreshing ? 'spin 1s linear infinite' : 'none',
+                }}
+              />
+            </button>
+          )}
+
+          {/* Active Risks Quick Pill */}
+          {activeRiskCount > 0 && (
+            <Link
+              to="/risk-queue"
+              className="topbar-risk-pill"
+              title={`${activeRiskCount} active risks pending attention`}
+            >
+              <div className="status-dot-pulse-wrap" style={{ width: 8, height: 8 }}>
+                <span className="status-dot-radar-ring risk" />
+                <span className="status-dot-pulse" style={{ width: 6, height: 6, background: '#f43f5e' }} />
+              </div>
+              <AlertTriangle size={12} />
+              <span>{activeRiskCount}</span>
+            </Link>
+          )}
+
           {/* Language Selector Toggle */}
           <div className="topbar-lang-toggle" role="group" aria-label="Language selection">
             <button
@@ -99,63 +157,14 @@ export default function Topbar({
               aria-pressed={lang === 'hi'}
               aria-label="हिन्दी में बदलें"
             >
-              हिन्दी
+              HI
             </button>
           </div>
-
-          {/* Refresh Action */}
-          {onRefresh && (
-            <button
-              type="button"
-              className="topbar-btn"
-              onClick={onRefresh}
-              disabled={isRefreshing}
-              title={t('topbar.refreshTooltip')}
-              aria-label={t('topbar.refreshTooltip')}
-            >
-              <RotateCw size={13} className={isRefreshing ? 'spin-anim' : ''} />
-              <span>{isRefreshing ? t('global.refreshing') : t('global.refresh')}</span>
-            </button>
-          )}
-
-          {/* Active Risk Pill */}
-          {activeRiskCount != null && activeRiskCount > 0 && (
-            <Link
-              to="/risk-queue"
-              className="topbar-risk-pill"
-              title={`${activeRiskCount} ${t('topbar.riskPill', { count: activeRiskCount })}`}
-            >
-              <ShieldAlert size={13} />
-              <span>
-                {activeRiskCount === 1
-                  ? t('topbar.riskPillSingular')
-                  : t('topbar.riskPill', { count: activeRiskCount })}
-              </span>
-            </Link>
-          )}
-
-          {/* Verified Environment State */}
-          <div className="command-status-badge" style={{ fontSize: 10.5 }} title={t('topbar.verifiedTooltip')}>
-            <span className="status-dot-pulse" />
-            <span>{t('global.verified')}</span>
-          </div>
-
-          {/* Role Chip */}
-          <span className="topbar-role-badge">
-            {userContext?.user?.role || t('topbar.roleOwner')}
-          </span>
-
-          {/* Landing / Overview link */}
-          <Link to="/landing" className="topbar-btn" title={t('topbar.overviewTooltip')}>
-            <span>{t('global.overview')}</span>
-            <ArrowUpRight size={12} />
-          </Link>
         </div>
       </header>
 
-      {/* Mount Command Palette */}
+      {/* Global Command Palette Modal */}
       <CommandPalette isOpen={isPaletteOpen} onClose={() => setIsPaletteOpen(false)} />
     </>
   )
 }
-

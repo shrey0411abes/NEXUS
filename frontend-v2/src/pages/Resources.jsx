@@ -13,294 +13,283 @@ import {
   Cpu,
   Layers,
   ArrowRight,
-  ExternalLink,
   BookOpen,
   FileCheck,
+  Coins,
+  CheckCircle2,
+  GitBranch,
 } from 'lucide-react'
 import Topbar from '../components/Topbar.jsx'
-import IntelligencePipeline from '../components/IntelligencePipeline.jsx'
+import {
+  DataPanel,
+  SectionHeader,
+  VerifiedBadge,
+  IntelligenceBadge,
+  TechnicalLabel,
+  StatusIndicator,
+  ActionButton,
+  InsightCallout,
+} from '../components/primitives/index.js'
 
-const RESOURCE_DOMAINS = [
+const LIFECYCLE_MAP = [
   {
-    domain: 'BUSINESS DATA',
-    tag: 'Authoritative Sources',
-    color: 'var(--cyan)',
-    resources: [
-      {
-        id: 'res-products',
-        title: 'Product Master Catalog',
-        description: 'Authoritative catalog of active SKUs, product naming, and base pricing.',
-        source: 'SQLite: products table · Tenant-scoped',
-        destination: '/inventory',
-        actionText: 'View catalog in Inventory',
-        icon: Package,
-      },
-      {
-        id: 'res-inventory',
-        title: 'Inventory Stock Levels',
-        description: 'Verified physical inventory on hand and safety stock reorder thresholds.',
-        source: 'SQLite: inventory table · GET /api/v1/inventory',
-        destination: '/inventory',
-        actionText: 'Inspect Inventory Stock',
-        icon: Database,
-      },
-      {
-        id: 'res-transactions',
-        title: 'POS Transaction Stream',
-        description: 'Immutable transaction records capturing units sold, order dates, and total amount.',
-        source: 'SQLite: transactions table · GET /api/v1/transactions',
-        destination: '/transactions',
-        actionText: 'Audit POS Transactions',
-        icon: Receipt,
-      },
-      {
-        id: 'res-financial-data',
-        title: 'Retail Asset Valuations',
-        description: 'Calculations of on-hand retail inventory valuation and capital trapped in stagnant SKUs.',
-        source: 'GET /api/v1/financial/summary',
-        destination: '/financial',
-        actionText: 'Inspect Financial Exposure',
-        icon: TrendingUp,
-      },
+    id: 'data',
+    title: '1. DATA INGESTION',
+    subtitle: 'Authoritative Sources',
+    icon: Database,
+    color: '#06b6d4',
+    principles: [
+      'SQLite physical tables: products, inventory, transactions',
+      'Tenant isolation derived strictly from verified JWT tokens',
+      'Immutable transaction records with Decimal arithmetic precision',
     ],
+    route: '/inventory',
+    routeLabel: 'Inspect Inventory Telemetry',
   },
   {
-    domain: 'INTELLIGENCE ENGINES',
-    tag: 'Deterministic Math',
-    color: 'var(--brand)',
-    resources: [
-      {
-        id: 'res-risk-correlation',
-        title: 'Cross-Domain Prioritization',
-        description: 'Evaluates multi-domain collisions between stock depletion rates, demand spikes, and capital.',
-        source: 'AnalyticsService · GET /api/v1/cross-domain/priorities',
-        destination: '/risk-queue',
-        actionText: 'Launch Risk Queue',
-        icon: AlertTriangle,
-      },
-      {
-        id: 'res-ai-investigations',
-        title: 'Grounded AI Investigations',
-        description: 'Contextual AI explanation engine citing answers strictly against verified SQL facts.',
-        source: 'InvestigationService · POST /api/v1/investigations',
-        destination: '/investigations',
-        actionText: 'Open AI Console',
-        icon: MessageSquareText,
-      },
-      {
-        id: 'res-demand-trends',
-        title: 'Velocity Comparison Engine',
-        description: '14-day velocity comparison determining acceleration, deceleration, and demand shift.',
-        source: 'AnalyticsService · GET /api/v1/analytics/trends',
-        destination: '/',
-        actionText: 'View in Command Center',
-        icon: TrendingUp,
-      },
+    id: 'analytics',
+    title: '2. DETERMINISTIC ANALYTICS',
+    subtitle: 'Mathematical Authority',
+    icon: Cpu,
+    color: '#3b82f6',
+    principles: [
+      '14-day moving average daily sales velocity comparison',
+      'Zero synthetic math: generative AI never calculates metrics',
+      'Deterministic SQLite queries calculate all revenue and volume',
     ],
+    route: '/',
+    routeLabel: 'Open Business Pulse',
   },
   {
-    domain: 'OPERATIONS & AUDIT',
-    tag: 'State Reconciliation',
-    color: 'var(--resolved)',
-    resources: [
-      {
-        id: 'res-risk-actions',
-        title: 'Action Lifecycle Log',
-        description: 'Audit log of user acknowledgements, resolutions, dismissals, and audit notes.',
-        source: 'SQLite: risk_actions table',
-        destination: '/activity',
-        actionText: 'Open Audit Stream',
-        icon: History,
-      },
-      {
-        id: 'res-saved-investigations',
-        title: 'Investigation Archive',
-        description: 'Persistent audit library of past natural language inquiries and calibrated confidence.',
-        source: 'GET /api/v1/investigations',
-        destination: '/saved-investigations',
-        actionText: 'View Saved Inquiries',
-        icon: BookOpen,
-      },
+    id: 'risk',
+    title: '3. CROSS-DOMAIN RISK',
+    subtitle: 'Collision Detection',
+    icon: AlertTriangle,
+    color: '#f43f5e',
+    principles: [
+      'Multi-domain collision between velocity drops, stockouts, and capital',
+      'Dynamic priority scoring and integer rank calculation (#01, #02, etc.)',
+      'Clear severity triage: Critical High, Moderate, and Low Watch',
     ],
+    route: '/risk-queue',
+    routeLabel: 'Launch Risk Queue',
   },
   {
-    domain: 'ARCHITECTURE & RULES',
-    tag: 'Core Tenets',
-    color: 'var(--purple)',
-    resources: [
-      {
-        id: 'res-rule-code-ai',
-        title: 'Code Calculates. AI Explains.',
-        description: 'Foundational architectural separation: zero synthetic business math by generative models.',
-        source: 'System Architecture Specification',
-        destination: '/landing',
-        actionText: 'Read Architectural Guarantees',
-        icon: ShieldCheck,
-      },
-      {
-        id: 'res-rule-tenant',
-        title: 'JWT Tenant Isolation',
-        description: 'Row-level multi-tenant security strictly derived from verified JWT authentication claims.',
-        source: 'Auth & RBAC Middleware',
-        destination: '/',
-        actionText: 'Command Center Security',
-        icon: FileCheck,
-      },
+    id: 'financial',
+    title: '4. FINANCIAL INTELLIGENCE',
+    subtitle: 'Capital Exposure Modeling',
+    icon: Coins,
+    color: '#f59e0b',
+    principles: [
+      'Daily stockout revenue exposure and 7d/30d projection runway',
+      'Trapped retail capital calculation for stagnant inventory',
+      'Retail asset valuation on hand per active SKU',
     ],
+    route: '/financial',
+    routeLabel: 'Open Financial Terminal',
+  },
+  {
+    id: 'investigation',
+    title: '5. GROUNDED INVESTIGATION',
+    subtitle: 'Reasoning Console',
+    icon: MessageSquareText,
+    color: '#a855f7',
+    principles: [
+      'Natural language query parsed into verified SQL constraints',
+      'AI synthesis explains verified business facts in plain language',
+      'Confidence calibration and execution duration telemetry',
+    ],
+    route: '/investigations',
+    routeLabel: 'Launch AI Workspace',
+  },
+  {
+    id: 'action',
+    title: '6. OPERATIONAL ACTION',
+    subtitle: 'State Reconciliation',
+    icon: CheckCircle2,
+    color: '#10b981',
+    principles: [
+      'Deterministic lifecycle transitions: OPEN → ACKNOWLEDGED → RESOLVED',
+      'Action notes and tenant actor attribution preserved per action',
+      'Direct one-click triage triggers on command surfaces',
+    ],
+    route: '/risk-queue',
+    routeLabel: 'Review Open Risks',
+  },
+  {
+    id: 'audit',
+    title: '7. IMMUTABLE AUDIT',
+    subtitle: 'Compliance & History',
+    icon: ShieldCheck,
+    color: '#06b6d4',
+    principles: [
+      'Append-only audit trail in risk_actions table',
+      'Zero destructive updates: history is preserved perpetually',
+      'Chronological timeline stream searchable by actor and SKU',
+    ],
+    route: '/activity',
+    routeLabel: 'Audit Stream',
   },
 ]
 
 export default function Resources({ onToggleMobileMenu }) {
-  const [activeDomain, setActiveDomain] = useState('ALL')
+  const [selectedPhase, setSelectedPhase] = useState('data')
 
-  const displayedDomains = activeDomain === 'ALL'
-    ? RESOURCE_DOMAINS
-    : RESOURCE_DOMAINS.filter((d) => d.domain === activeDomain)
+  const currentPhase = LIFECYCLE_MAP.find((p) => p.id === selectedPhase) || LIFECYCLE_MAP[0]
 
   return (
     <>
-      <Topbar
-        title="INTELLIGENCE MAP & TOPOLOGY"
-        subtitle="System understanding of data sources, analytical engines, and operational rules."
-        onToggleMobileMenu={onToggleMobileMenu}
-      />
+      <Topbar onToggleMobileMenu={onToggleMobileMenu} />
 
       <div className="page-content">
+        {/* Section Header */}
+        <SectionHeader
+          meta="ARCHITECTURE KNOWLEDGE MAP"
+          title="NEXUS Operating Architecture"
+          description="Explore the end-to-end intelligence cycle: from raw SQLite data ingestion to deterministic analytics, risk collision, financial exposure, grounded AI investigation, action, and immutable audit."
+          badge={<VerifiedBadge />}
+        />
 
-        {/* ── Header ─────────────────────────────────────────────────── */}
-        <div className="command-header">
-          <div className="command-header-left">
-            <div className="command-header-meta">
-              <span className="mono" style={{ fontSize: 11, color: 'var(--cyan)', fontWeight: 600 }}>
-                SYSTEM UNDERSTANDING
-              </span>
-              <span className="command-status-badge">
-                <span className="status-dot-pulse" />
-                TOPOLOGY RECONCILED
+        {/* ── Interactive Lifecycle Topology Map ───────────────────────── */}
+        <div
+          style={{
+            background: 'var(--bg-panel)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--radius-sm)',
+            padding: '20px',
+            marginBottom: 20,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <GitBranch size={16} color="var(--cyan)" />
+              <span className="mono" style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-primary)' }}>
+                NEXUS KNOWLEDGE TOPOLOGY MAP
               </span>
             </div>
-            <h1 className="command-header-title">Intelligence Map & Topology</h1>
-            <p className="command-header-desc">
-              Comprehensive architectural blueprint linking raw business data sources to deterministic calculation engines and AI synthesis.
-            </p>
+            <TechnicalLabel value="SYSTEM V2.0" variant="cyan" size="xs" />
+          </div>
+
+          {/* Interactive Topology Nodes */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              overflowX: 'auto',
+              gap: 8,
+              padding: '6px 0 10px',
+            }}
+          >
+            {LIFECYCLE_MAP.map((phase, idx) => {
+              const Icon = phase.icon
+              const isSelected = selectedPhase === phase.id
+
+              return (
+                <div key={phase.id} style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 130 }}>
+                  <div
+                    onClick={() => setSelectedPhase(phase.id)}
+                    style={{
+                      background: isSelected ? 'rgba(6, 182, 212, 0.12)' : 'rgba(255, 255, 255, 0.03)',
+                      border: isSelected ? '1px solid var(--cyan)' : '1px solid var(--border-subtle)',
+                      borderRadius: 'var(--radius-xs)',
+                      padding: '10px',
+                      flex: 1,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'flex-start',
+                      transition: 'all 0.15s ease',
+                      boxShadow: isSelected ? '0 0 12px rgba(6, 182, 212, 0.2)' : 'none',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                      <Icon size={13} color={phase.color} />
+                      <span className="mono" style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-primary)' }}>
+                        {phase.title.split('. ')[1]}
+                      </span>
+                    </div>
+                    <span style={{ fontSize: 9.5, color: 'var(--text-muted)' }}>{phase.subtitle}</span>
+                  </div>
+
+                  {idx < LIFECYCLE_MAP.length - 1 && (
+                    <ArrowRight size={10} color="var(--border-default)" style={{ flexShrink: 0 }} />
+                  )}
+                </div>
+              )
+            })}
           </div>
         </div>
 
-        {/* ── Architecture Pipeline Visual ────────────────────────────── */}
-        <IntelligencePipeline />
-
-        {/* ── Domain Filter Tabs ──────────────────────────────────────── */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}>
-          <button
-            type="button"
-            onClick={() => setActiveDomain('ALL')}
-            style={{
-              padding: '6px 14px',
-              borderRadius: 'var(--radius-xs)',
-              fontSize: 12.5,
-              fontWeight: 600,
-              background: activeDomain === 'ALL' ? 'var(--brand)' : 'rgba(255, 255, 255, 0.03)',
-              color: activeDomain === 'ALL' ? '#fff' : 'var(--text-secondary)',
-              border: '1px solid',
-              borderColor: activeDomain === 'ALL' ? 'var(--brand)' : 'var(--border-subtle)',
-            }}
+        {/* ── Active Phase Detail Explorer ────────────────────────────── */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 320px',
+            gap: 20,
+            marginBottom: 20,
+          }}
+          className="cmd-grid-resources"
+        >
+          {/* Main Phase Principles & Guarantees */}
+          <DataPanel
+            title={currentPhase.title}
+            subtitle={currentPhase.subtitle}
+            icon={currentPhase.icon}
+            badge={<VerifiedBadge />}
+            actions={
+              <Link to={currentPhase.route}>
+                <ActionButton variant="cyan" size="sm" icon={ArrowRight}>
+                  {currentPhase.routeLabel}
+                </ActionButton>
+              </Link>
+            }
           >
-            All Domains
-          </button>
-          {RESOURCE_DOMAINS.map((d) => (
-            <button
-              key={d.domain}
-              type="button"
-              onClick={() => setActiveDomain(d.domain)}
-              style={{
-                padding: '6px 14px',
-                borderRadius: 'var(--radius-xs)',
-                fontSize: 12.5,
-                fontWeight: 600,
-                background: activeDomain === d.domain ? d.color : 'rgba(255, 255, 255, 0.03)',
-                color: activeDomain === d.domain ? '#000' : 'var(--text-secondary)',
-                border: '1px solid',
-                borderColor: activeDomain === d.domain ? d.color : 'var(--border-subtle)',
-              }}
-            >
-              {d.domain}
-            </button>
-          ))}
-        </div>
+            <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                ARCHITECTURAL GUARANTEES & INVARIANTS
+              </span>
 
-        {/* ── Resource Cards by Domain ────────────────────────────────── */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-          {displayedDomains.map((domainBlock) => (
-            <div key={domainBlock.domain}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: domainBlock.color }} />
-                <h2 style={{ fontSize: 15, fontWeight: 700, color: '#fff', letterSpacing: '0.04em' }}>
-                  {domainBlock.domain}
-                </h2>
-                <span className="mono" style={{ fontSize: 10.5, color: domainBlock.color, textTransform: 'uppercase' }}>
-                  [{domainBlock.tag}]
-                </span>
-              </div>
-
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-                  gap: 16,
-                }}
-              >
-                {domainBlock.resources.map((item) => {
-                  const Icon = item.icon
-                  return (
-                    <div
-                      key={item.id}
-                      className="card"
-                      style={{
-                        padding: '18px 20px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'space-between',
-                      }}
-                    >
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                          <Icon size={16} color={domainBlock.color} />
-                          <h3 style={{ fontSize: 14, fontWeight: 600, color: '#fff' }}>
-                            {item.title}
-                          </h3>
-                        </div>
-                        <p style={{ fontSize: 12.5, color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 12 }}>
-                          {item.description}
-                        </p>
-                      </div>
-
-                      <div>
-                        <div className="mono" style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 12 }}>
-                          {item.source}
-                        </div>
-                        <Link
-                          to={item.destination}
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: 6,
-                            fontSize: 12,
-                            fontWeight: 600,
-                            color: 'var(--brand-light)',
-                          }}
-                        >
-                          <span>{item.actionText}</span>
-                          <ArrowRight size={13} />
-                        </Link>
-                      </div>
-                    </div>
-                  )
-                })}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {currentPhase.principles.map((p, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.02)',
+                      border: '1px solid var(--border-subtle)',
+                      borderRadius: 'var(--radius-xs)',
+                      padding: '12px 14px',
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: 10,
+                      fontSize: 13,
+                      color: 'var(--text-primary)',
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    <CheckCircle2 size={16} color={currentPhase.color} style={{ flexShrink: 0, marginTop: 2 }} />
+                    <span>{p}</span>
+                  </div>
+                ))}
               </div>
             </div>
-          ))}
-        </div>
+          </DataPanel>
 
+          {/* Core Philosophy Callouts */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <InsightCallout type="verified" title="Code Calculates. AI Explains.">
+              NEXUS maintains a strict separation of powers: deterministic code executes all business calculations; generative models synthesize explanations without fabricating metrics.
+            </InsightCallout>
+
+            <InsightCallout type="info" title="Tenant Isolation By Contract">
+              Authentication token validation enforces tenant isolation at the service boundary. Cross-tenant reads and mutations return 404 or 403.
+            </InsightCallout>
+
+            <InsightCallout type="action" title="Deterministic Action Logging">
+              Every acknowledged risk, inventory change, and transaction is immutably recorded in the SQLite audit log with user email attribution.
+            </InsightCallout>
+          </div>
+        </div>
       </div>
     </>
   )
