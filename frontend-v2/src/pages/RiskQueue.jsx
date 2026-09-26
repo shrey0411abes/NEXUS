@@ -39,6 +39,8 @@ import {
   Timeline,
 } from '../components/primitives/index.js'
 import { fetchRiskPriorities, fetchRiskActions, recordRiskAction } from '../api.js'
+import ActionModal from '../components/ActionModal.jsx'
+import { toast } from '../components/Toast.jsx'
 import { useI18n } from '../i18n/index.jsx'
 import { useNavigate } from 'react-router-dom'
 
@@ -54,6 +56,8 @@ export default function RiskQueue({ onToggleMobileMenu }) {
   const [categoryFilter, setCategoryFilter] = useState('ALL')
   const [activeRisk, setActiveRisk] = useState(null)
   const [actionInProgress, setActionInProgress] = useState(null)
+  const [actionModalRisk, setActionModalRisk] = useState(null)
+  const [highlightedRisk, setHighlightedRisk] = useState(null)
 
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -149,10 +153,17 @@ export default function RiskQueue({ onToggleMobileMenu }) {
       .slice(0, 4)
   }, [activeRisks])
 
+  // Row highlight helper with state-matching
+  const triggerRowHighlight = (id, targetState) => {
+    setHighlightedRisk({ id, state: targetState })
+    setTimeout(() => setHighlightedRisk(null), 2000)
+  }
+
   // Quick triage handler from card
   const handleQuickTriage = async (e, risk, targetState) => {
     e.stopPropagation()
-    setActionInProgress(risk.risk_fingerprint)
+    const riskId = risk.risk_fingerprint || risk.id
+    setActionInProgress(riskId)
     try {
       await recordRiskAction({
         risk_fingerprint: risk.risk_fingerprint,
@@ -164,13 +175,42 @@ export default function RiskQueue({ onToggleMobileMenu }) {
       // Update local state
       setQueue((prev) =>
         prev.map((r) =>
-          r.risk_fingerprint === risk.risk_fingerprint ? { ...r, current_state: targetState } : r
+          (r.risk_fingerprint || r.id) === riskId ? { ...r, current_state: targetState } : r
         )
       )
-    } catch (_) {
-      // Revert or show alert
+      // State-matched row highlight (amber for ACK, teal for RESOLVED, muted for DISMISSED)
+      triggerRowHighlight(riskId, targetState)
+      toast.success(`Operational risk transitioned to ${targetState}.`, 'Action Recorded')
+    } catch (err) {
+      toast.error(err?.message || 'Quick triage transition failed.', 'Action Error')
     } finally {
       setActionInProgress(null)
+    }
+  }
+
+  // ActionModal submission handler
+  const handleActionModalSubmit = async (payload) => {
+    if (!actionModalRisk) return
+    const riskId = actionModalRisk.risk_fingerprint || actionModalRisk.id
+    try {
+      await recordRiskAction({
+        risk_fingerprint: actionModalRisk.risk_fingerprint,
+        product_id: actionModalRisk.product_id ?? null,
+        risk_category: actionModalRisk.risk_category,
+        state: payload.state,
+        action_note: payload.note || `Transition to ${payload.state} via ActionModal`,
+      })
+      setQueue((prev) =>
+        prev.map((r) =>
+          (r.risk_fingerprint || r.id) === riskId ? { ...r, current_state: payload.state } : r
+        )
+      )
+      // State-matched row highlight
+      triggerRowHighlight(riskId, payload.state)
+      toast.success(`Operational risk transitioned to ${payload.state}.`, 'Action Recorded')
+    } catch (err) {
+      toast.error(err?.message || 'Failed to record operational action.', 'Action Failed')
+      throw err // Rethrow to trigger modal shake-on-failure
     }
   }
 
@@ -421,21 +461,22 @@ export default function RiskQueue({ onToggleMobileMenu }) {
           }
         />
 
-        {/* ── Main Risk Command Surface or Audit Timeline ─────────────── */}
-        {tab === 'history' ? (
-          <DataPanel title="RISK AUDIT HISTORY" subtitle="Chronological transition records" icon={Clock}>
-            <div style={{ padding: '20px' }}>
-              <Timeline items={timelineItems} />
-            </div>
-          </DataPanel>
-        ) : (
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))',
-              gap: 16,
-            }}
-          >
+        {/* ── Main Risk Command Surface or Audit Timeline with 120ms Tab Crossfade ─ */}
+        <div key={tab} className="tab-crossfade-panel">
+          {tab === 'history' ? (
+            <DataPanel title="RISK AUDIT HISTORY" subtitle="Chronological transition records" icon={Clock}>
+              <div style={{ padding: '20px' }}>
+                <Timeline items={timelineItems} />
+              </div>
+            </DataPanel>
+          ) : (
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))',
+                gap: 16,
+              }}
+            >
             {loading ? (
               <div style={{ gridColumn: '1 / -1', padding: 32, textAlign: 'center', color: 'var(--text-muted)' }}>
                 Evaluating cross-domain risks...
@@ -446,14 +487,22 @@ export default function RiskQueue({ onToggleMobileMenu }) {
               </div>
             ) : (
               filteredRows.map((risk) => {
-                const isSubmittingThis = actionInProgress === risk.risk_fingerprint
+                const isSubmittingThis = actionInProgress === (risk.risk_fingerprint || risk.id)
                 const isHigh = risk.severity === 'HIGH'
+                const isHighlighted = highlightedRisk?.id === (risk.risk_fingerprint || risk.id)
+                const highlightClass = isHighlighted
+                  ? highlightedRisk.state === 'ACKNOWLEDGED'
+                    ? 'row-highlight-ack'
+                    : highlightedRisk.state === 'DISMISSED'
+                    ? 'row-highlight-dismissed'
+                    : 'row-highlight-resolved'
+                  : ''
 
                 return (
                   <div
                     key={risk.risk_fingerprint || risk.id}
                     onClick={() => setActiveRisk(risk)}
-                    className="nexus-risk-card"
+                    className={`nexus-risk-card ${highlightClass}`}
                     style={{
                       background: 'var(--bg-panel)',
                       border: isHigh
@@ -567,6 +616,16 @@ export default function RiskQueue({ onToggleMobileMenu }) {
                             Resolve
                           </ActionButton>
                         )}
+                        <ActionButton
+                          variant="subtle"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setActionModalRisk(risk)
+                          }}
+                        >
+                          Triage Modal
+                        </ActionButton>
                       </div>
 
                       <div
@@ -589,6 +648,16 @@ export default function RiskQueue({ onToggleMobileMenu }) {
             )}
           </div>
         )}
+        </div>
+
+        {/* ActionModal with Enter/Exit Animation & Shake-on-Failure */}
+        {actionModalRisk && (
+          <ActionModal
+            risk={actionModalRisk}
+            onClose={() => setActionModalRisk(null)}
+            onSubmit={handleActionModalSubmit}
+          />
+        )}
 
         {/* Contextual Intelligence Drawer with Progressive Disclosure */}
         {activeRisk && (
@@ -596,11 +665,14 @@ export default function RiskQueue({ onToggleMobileMenu }) {
             risk={activeRisk}
             onClose={() => setActiveRisk(null)}
             onActionSuccess={(updatedRisk) => {
+              const updatedId = updatedRisk.risk_fingerprint || updatedRisk.id
               setQueue((prev) =>
                 prev.map((r) =>
-                  r.risk_fingerprint === updatedRisk.risk_fingerprint ? updatedRisk : r
+                  (r.risk_fingerprint || r.id) === updatedId ? updatedRisk : r
                 )
               )
+              triggerRowHighlight(updatedId, updatedRisk.current_state)
+              toast.success('Risk action updated successfully.', 'Drawer Action')
             }}
           />
         )}

@@ -247,8 +247,8 @@ export default function AuthModal({ isOpen = true, onClose, onAuthSuccess }) {
           </button>
         </div>
 
-        {/* Content Body */}
-        <div style={{ padding: '20px 24px' }}>
+        {/* Content Body with 120ms Tab Crossfade */}
+        <div key={tab} className="tab-crossfade-panel" style={{ padding: '20px 24px' }}>
           {error && (
             <div
               style={{

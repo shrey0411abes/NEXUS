@@ -5,6 +5,7 @@ import MobileBottomNav from './components/MobileBottomNav.jsx'
 import AuthModal from './components/AuthModal.jsx'
 import { PageSuspenseFallback } from './components/Skeleton.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
+import { ToastContainer } from './components/Toast.jsx'
 import {
   fetchCurrentUser,
   fetchRiskPriorities,
@@ -207,6 +208,7 @@ export default function App() {
           }
         />
       </Routes>
+      <ToastContainer />
     </Suspense>
   )
 }

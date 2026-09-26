@@ -44,10 +44,15 @@
   --ack-glow: rgba(245, 158, 11, 0.22);
   --ack-bg: rgba(245, 158, 11, 0.10);
 
-  --resolved: #10b981;
-  --resolved-light: #34d399;
-  --resolved-glow: rgba(16, 185, 129, 0.22);
-  --resolved-bg: rgba(16, 185, 129, 0.10);
+  --resolved: #2E9E83;
+  --resolved-light: #48c9a6;
+  --resolved-glow: rgba(46, 158, 131, 0.25);
+  --resolved-bg: rgba(46, 158, 131, 0.12);
+
+  --dismissed: #64748b;
+  --dismissed-light: #94a3b8;
+  --dismissed-glow: rgba(100, 116, 139, 0.22);
+  --dismissed-bg: rgba(100, 116, 139, 0.10);
 
   --cyan: #06b6d4;
   --cyan-glow: rgba(6, 182, 212, 0.22);
@@ -4432,6 +4437,312 @@ button {
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(139, 92, 246, 0.1);
   transform: translateY(-2px);
 }
+
+/* ═════════════════════════════════════════════════════════════════════════════
+   MOTION DESIGN SPEC IMPLEMENTATION
+   1. ActionModal enter/exit, shake-on-failure, row-highlight-on-success
+   2. Tab crossfade (120ms)
+   3. Toast enter/exit (slide+fade in, fade-only out)
+   ═════════════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. ActionModal Transitions & Feedback ────────────────────────────────── */
+@keyframes actionModalBackdropFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes actionModalBackdropFadeOut {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+@keyframes actionModalScaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.94) translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes actionModalScaleOut {
+  from {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+}
+
+@keyframes actionModalShake {
+  0%, 100% { transform: translateX(0); }
+  15%      { transform: translateX(-8px); }
+  30%      { transform: translateX(7px); }
+  45%      { transform: translateX(-6px); }
+  60%      { transform: translateX(5px); }
+  75%      { transform: translateX(-3px); }
+  90%      { transform: translateX(2px); }
+}
+
+.action-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: actionModalBackdropFadeIn 180ms ease-out forwards;
+}
+
+.action-modal-overlay.closing {
+  animation: actionModalBackdropFadeOut 150ms ease-in forwards;
+}
+
+.action-modal-box {
+  width: 100%;
+  max-width: 520px;
+  background: #0d1117;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-md, 8px);
+  padding: 24px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.85), 0 0 30px rgba(0, 0, 0, 0.5);
+  position: relative;
+  animation: actionModalScaleIn 180ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.action-modal-box.closing {
+  animation: actionModalScaleOut 150ms ease-in forwards;
+}
+
+.action-modal-box.shake {
+  animation: actionModalShake 400ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+/* ── State-Matched Row Highlights (Using Project Design Tokens) ───────────── */
+/* RESOLVED: Signature NEXUS Teal (--resolved: #2E9E83) */
+@keyframes rowHighlightResolved {
+  0% {
+    background-color: var(--resolved-bg) !important;
+    border-color: var(--resolved) !important;
+    box-shadow: 0 0 24px var(--resolved-glow), inset 0 0 12px var(--resolved-bg) !important;
+    transform: scale(1.01);
+  }
+  30% {
+    background-color: rgba(46, 158, 131, 0.18) !important;
+    border-color: var(--resolved-light) !important;
+    box-shadow: 0 0 16px var(--resolved-glow) !important;
+    transform: scale(1);
+  }
+  100% {
+    background-color: inherit;
+    border-color: inherit;
+    box-shadow: inherit;
+    transform: scale(1);
+  }
+}
+
+/* ACKNOWLEDGED: Amber (--ack: #f59e0b) */
+@keyframes rowHighlightAck {
+  0% {
+    background-color: var(--ack-bg) !important;
+    border-color: var(--ack) !important;
+    box-shadow: 0 0 24px var(--ack-glow), inset 0 0 12px var(--ack-bg) !important;
+    transform: scale(1.01);
+  }
+  30% {
+    background-color: rgba(245, 158, 11, 0.18) !important;
+    border-color: var(--ack-light) !important;
+    box-shadow: 0 0 16px var(--ack-glow) !important;
+    transform: scale(1);
+  }
+  100% {
+    background-color: inherit;
+    border-color: inherit;
+    box-shadow: inherit;
+    transform: scale(1);
+  }
+}
+
+/* DISMISSED: Slate Muted (--dismissed: #64748b) */
+@keyframes rowHighlightDismissed {
+  0% {
+    background-color: var(--dismissed-bg) !important;
+    border-color: var(--dismissed) !important;
+    box-shadow: 0 0 24px var(--dismissed-glow), inset 0 0 12px var(--dismissed-bg) !important;
+    transform: scale(1.008);
+  }
+  30% {
+    background-color: rgba(100, 116, 139, 0.16) !important;
+    border-color: var(--dismissed-light) !important;
+    box-shadow: 0 0 14px var(--dismissed-glow) !important;
+    transform: scale(1);
+  }
+  100% {
+    background-color: inherit;
+    border-color: inherit;
+    box-shadow: inherit;
+    transform: scale(1);
+  }
+}
+
+.row-highlight-resolved,
+.row-highlight-success {
+  animation: rowHighlightResolved 1800ms cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+  position: relative;
+  z-index: 5;
+}
+
+.row-highlight-ack {
+  animation: rowHighlightAck 1800ms cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+  position: relative;
+  z-index: 5;
+}
+
+.row-highlight-dismissed {
+  animation: rowHighlightDismissed 1800ms cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+  position: relative;
+  z-index: 5;
+}
+
+/* ── 2. Tab Crossfade (120ms spec) ────────────────────────────────────────── */
+@keyframes tabCrossfade {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tab-crossfade-panel {
+  animation: tabCrossfade 120ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: opacity, transform;
+}
+
+/* ── 3. Toast Notifications (slide+fade in, fade-only out) ────────────────── */
+@keyframes toastEnter {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes toastExit {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.nexus-toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+  max-width: 400px;
+  width: calc(100% - 48px);
+}
+
+.nexus-toast-item {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: var(--radius-sm, 6px);
+  background: rgba(13, 17, 23, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.75), 0 0 1px rgba(255, 255, 255, 0.2);
+  color: #f1f5f9;
+  font-size: 13px;
+  line-height: 1.45;
+  will-change: transform, opacity;
+  animation: toastEnter 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.nexus-toast-item.exiting {
+  animation: toastExit 160ms ease-in forwards !important;
+}
+
+.nexus-toast-item.variant-success {
+  border-left: 3px solid var(--resolved, #2E9E83);
+}
+
+.nexus-toast-item.variant-error {
+  border-left: 3px solid #f43f5e;
+}
+
+.nexus-toast-item.variant-info {
+  border-left: 3px solid #06b6d4;
+}
+
+.nexus-toast-item.variant-warning {
+  border-left: 3px solid #f59e0b;
+}
+
+.nexus-toast-icon {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.nexus-toast-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.nexus-toast-title {
+  font-weight: 600;
+  font-size: 13px;
+  color: #fff;
+  margin-bottom: 2px;
+}
+
+.nexus-toast-message {
+  color: var(--text-secondary, #94a3b8);
+  font-size: 12px;
+}
+
+.nexus-toast-close {
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  color: var(--text-muted, #64748b);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s ease;
+}
+
+.nexus-toast-close:hover {
+  color: #fff;
+}
+
 
 
 
